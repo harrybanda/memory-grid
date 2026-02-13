@@ -4,13 +4,6 @@ A Spectacles AR memory game built with Lens Studio. Players memorize a path show
 
 ## Quick Start
 
-```mermaid
-flowchart LR
-    A[Clone repo] --> B[Open memory-grid.esproj<br/>in Lens Studio]
-    B --> C[Preview or Publish]
-    C --> D[Spectacles Preview<br/>or Lens Explorer]
-```
-
 1. **Clone this repository**
 2. **Open in Lens Studio** — Open `memory-grid.esproj` in Lens Studio (v5.15 or compatible)
 3. **Preview or Publish** — Use Spectacles Preview or publish to Lens Explorer for Spectacles
