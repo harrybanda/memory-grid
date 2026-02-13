@@ -4,6 +4,13 @@ A Spectacles AR memory game built with Lens Studio. Players memorize a path show
 
 ## Quick Start
 
+```mermaid
+flowchart LR
+    A[Clone repo] --> B[Open memory-grid.esproj<br/>in Lens Studio]
+    B --> C[Preview or Publish]
+    C --> D[Spectacles Preview<br/>or Lens Explorer]
+```
+
 1. **Clone this repository**
 2. **Open in Lens Studio** — Open `memory-grid.esproj` in Lens Studio (v5.15 or compatible)
 3. **Preview or Publish** — Use Spectacles Preview or publish to Lens Explorer for Spectacles
@@ -111,6 +118,21 @@ The project is pre-configured—open the `.esproj` file to run. The following st
 
 3. **Attach PlacementBridge.js** to the `ObjectVisuals` object
 
+**Placement flow (Start → Game):**
+
+```mermaid
+flowchart TD
+    A[User taps Start] --> B[Main menu hides]
+    B --> C[Surface Placement prefab enabled]
+    C --> D[User pinch-places grid on floor]
+    D --> E[PlacementBridge detects objectVisuals enabled]
+    E --> F[PlacementBridge.onGridPlaced]
+    F --> G[GameStateManager.onGridPlaced]
+    G --> H[GridManager.initialize + PlayerTracker.init]
+    H --> I[GRID_INTRO state]
+    I --> J[Host intro → COUNTDOWN → ...]
+```
+
 ### 3. Script Setup
 
 Create empty SceneObjects and attach scripts:
@@ -172,6 +194,18 @@ The game uses collision-based detection for reliable tile entry. This filters ou
    - Drag your trigger prefab to the **Trigger Prefab** input
 
 **How it works:**
+
+```mermaid
+flowchart TD
+    A[Grid created] --> B[Trigger plane at each tile center]
+    B --> C{Player walks forward}
+    C --> D[Camera collider passes through trigger]
+    D --> E[onOverlapEnter fires]
+    E --> F[TileTrigger → PlayerTracker validates]
+    C -->|Head tilt only| G[Collider doesn't move enough]
+    G --> H[No trigger - avoids false positives]
+```
+
 - Trigger planes are spawned at each tile center when the grid is created
 - When you walk forward, your camera collider passes through the trigger
 - Head tilts don't trigger because rotation doesn't move the collider forward enough
@@ -188,43 +222,71 @@ The game uses collision-based detection for reliable tile entry. This filters ou
 
 ## Game Flow
 
+```mermaid
+flowchart TD
+    A[IDLE] --> B[PLACING_GRID]
+    B -->|User pinch-places grid on floor| C[GRID_INTRO]
+    C -->|Dimmed grid, yellow START tile<br/>Host: Welcome/Goal/Level 1 or Level N| D[COUNTDOWN]
+    D -->|3-2-1-WATCH on floor| E[MEMORIZE]
+    E -->|Host: Watch!<br/>Path revealed tile-by-tile| F[PLAYING]
+    F -->|Host: Go!<br/>Player walks path from memory| G{Correct step?}
+    G -->|No| H[FAILED]
+    G -->|Yes| I{Reached end tile?}
+    I -->|No| F
+    I -->|Yes| J[COMPLETED]
+    H -->|Fail audio, reveal path| K[WAITING_IN_START_ZONE]
+    J -->|Success + confetti<br/>Head back to start zone| K
+    K -->|Start zone marker visible| L{Player enters start zone?}
+    L -->|Yes| C
+    L -->|No| K
 ```
-1. IDLE
-   ↓
-2. PLACING_GRID         → User places grid on floor using pinch gesture
-   ↓
-3. GRID_INTRO          → Dimmed grid with bright yellow START tile
-                         Level 1: host intro (Welcome → Goal → Level 1)
-                         Level 2+: host plays level announcement only
-                         Host follows camera, bobs while speaking
-   ↓
-4. COUNTDOWN           → 3-2-1-WATCH on floor
-   ↓
-5. MEMORIZE            → Host says "Watch!" or "Watch carefully..."
-                         Path revealed tile-by-tile (~0.5s each)
-                         Yellow → Green → Blue, arrows on each
-   ↓
-6. PLAYING              → Host says "Go!" or "Now walk the path!"
-                         Path hidden, player walks from memory
-                         Idle prompt after 15s of no movement
-   ↓
-7. COMPLETED           → Success audio + confetti celebration
-                         → progression (at milestones)
-                         → "Head back to start zone!"
-   or
-7. FAILED              → Fail audio → "Step back to start zone!"
-   ↓
-8. WAITING_IN_START_ZONE → Start zone marker appears
-                          Confetti can remain visible while walking back
-                          Player enters → level announcement → COUNTDOWN
-                          (loops back to step 4)
+
+| State | Description |
+|-------|-------------|
+| **IDLE** | Main menu visible |
+| **PLACING_GRID** | User places grid on floor using pinch gesture |
+| **GRID_INTRO** | Dimmed grid with bright yellow START tile; Level 1: Welcome → Goal → Level 1; Level 2+: level announcement only |
+| **COUNTDOWN** | 3-2-1-WATCH on floor |
+| **MEMORIZE** | Path revealed tile-by-tile (~0.5s each), arrows on each |
+| **PLAYING** | Path hidden, player walks from memory; idle prompt after 15s |
+| **COMPLETED** | Success audio, confetti, "Head back to start zone!" |
+| **FAILED** | Fail audio, reveal path, "Step back to start zone!" |
+| **WAITING_IN_START_ZONE** | Start zone marker appears; player enters → level announcement → COUNTDOWN |
+
+### Step Validation Flow
+
+When the player walks onto a tile, the collider-based trigger fires and `PlayerTracker` validates the step:
+
+```mermaid
+flowchart TD
+    A[Camera collider enters tile trigger] --> B{Is tracking active?}
+    B -->|No| C[Ignore]
+    B -->|Yes| D{Same tile as before?}
+    D -->|Yes| C
+    D -->|No| E{Step matches expected path position?}
+    E -->|Yes| F[Correct step]
+    E -->|No| G[Wrong step]
+    F --> H{Reached end tile?}
+    H -->|Yes| I[Path complete - COMPLETED]
+    H -->|No| J[Play step sound, continue]
+    G --> K[Mark tile red, play error sound]
+    K --> L[FAILED state]
 ```
 
 ### Why Progressive Reveal?
 
 Spectacles' limited FOV makes scanning a full grid difficult. Instead:
+
+```mermaid
+flowchart LR
+    A[Yellow start tile] --> B[Reveal tile 2]
+    B --> C[Reveal tile 3]
+    C --> D[...]
+    D --> E[Reveal end tile]
+```
+
 1. Player's attention starts on the yellow start tile (focal point)
-2. Tiles appear sequentially, naturally guiding the eye
+2. Tiles appear sequentially (~0.5s each), naturally guiding the eye
 3. Arrows show direction without needing to see the whole grid
 4. The path "draws itself" from player's perspective
 
@@ -299,11 +361,48 @@ The robot host uses pre-defined dialogue lines in `Utils/DialogueLines.js`. Audi
 
 ## Core Components
 
-- **GameStateManager** — Orchestrates game flow, exposes `global.PathFinder.Game`, `global.PathFinder.Placement`, `global.PathFinder.MainMenu`
-- **GridManager** — Grid creation, path generation, tile visualization
-- **PlayerTracker** — Collision-based step validation, start zone detection
-- **HostManager** — Robot host with billboard behavior, dialogue playback
-- **SaveManager** — Persistent storage via `global.PathFinder.Save`
+```mermaid
+flowchart TB
+    subgraph Input
+        P[PlacementBridge]
+        M[MainMenuManager]
+    end
+    
+    subgraph Core
+        G[GameStateManager]
+    end
+    
+    subgraph Gameplay
+        GM[GridManager]
+        PT[PlayerTracker]
+        HM[HostManager]
+        SZ[StartZoneVisual]
+    end
+    
+    subgraph Storage
+        S[SaveManager]
+    end
+    
+    P -->|onGridPlaced| G
+    M -->|Start/destroy placement| G
+    G -->|state, level, exit| M
+    G -->|generatePath, show/hide tiles| GM
+    G -->|start/stop tracking, callbacks| PT
+    G -->|play dialogue, show/hide| HM
+    G -->|show/hide zone| SZ
+    GM -->|onTriggerEntered| PT
+    SZ -->|onPlayerEntered/Exited| PT
+    PT -->|onCorrectStep, onWrongStep, onPathCompleted| G
+    G -->|onLevelCompleted/Failed| S
+```
+
+| Component | Role |
+|-----------|------|
+| **GameStateManager** | Orchestrates game flow, exposes `global.PathFinder.Game`, `global.PathFinder.Placement`, `global.PathFinder.MainMenu` |
+| **GridManager** | Grid creation, path generation, tile visualization |
+| **PlayerTracker** | Collision-based step validation, start zone detection |
+| **HostManager** | Robot host with billboard behavior, dialogue playback |
+| **SaveManager** | Persistent storage via `global.PathFinder.Save` |
 
 See `Assets/Scripts/Core/`, `Assets/Scripts/Grid/`, `Assets/Scripts/Player/`, `Assets/Scripts/Host/`, and `Assets/Scripts/Utils/` for full API details.
 
