@@ -345,9 +345,11 @@ Path length formula: `BASE_PATH_LENGTH + (level - 1) * PATH_INCREMENT`
 
 The robot host uses pre-defined dialogue lines in `Utils/DialogueLines.js`. Audio plays via `AudioManager` when voice files are imported; falls back to timer-based progression otherwise.
 
+The dialogue audio in this project was generated using [OpenAI Text to Speech](https://platform.openai.com/docs/guides/text-to-speech).
+
 ### Adding Voice Audio
 
-1. **Generate audio files** using ElevenLabs or similar TTS service (use `voice_lines.json` as input)
+1. **Generate audio files** using ElevenLabs, OpenAI Text to Speech, or similar TTS service (use `voice_lines.json` as input)
 2. **Import audio files** into Lens Studio
 3. **Set up AudioManager** — attach script, add voice files to Voice Lines array
 4. Name files to match dialogue IDs exactly (e.g., `welcome.mp3`, `level_1.mp3`)
@@ -434,6 +436,12 @@ The exit button returns to the main menu during gameplay. **Place the exit butto
 - Spectacles device (recommended for testing)
 
 Feel free to [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) this project to use, modify, or build upon it.
+
+## Attributions
+
+- **Robot host ("Drobo")** — by The Dive VR Arcade ([CC-BY](https://creativecommons.org/licenses/by/3.0/)) via [Poly Pizza](https://poly.pizza/m/cUj6rDSUIhT)
+- **Countdown sound** ("808 drum percussion interface click netural count down three seconds.wav") — by [ryusa](https://freesound.org/s/531133/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) via [Freesound](https://freesound.org/s/531133/)
+- **Failure jingle** ("Failure Jingle.ogg") — by [TitanKaempfer](https://freesound.org/s/689902/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) via [Freesound](https://freesound.org/s/689902/)
 
 ## License
 
