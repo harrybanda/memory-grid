@@ -1,0 +1,52 @@
+- !<AssetImportMetadata/c54fc191-9c3e-408a-8c1a-65adc6d2f6c3>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> bc6c2dfd-b92b-461a-b3e6-814ff0df9af7
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> bc6c2dfd-b92b-461a-b3e6-814ff0df9af7
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> e9d7a527-12f6-4323-9265-3a24764fa6af
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/e9d7a527-12f6-4323-9265-3a24764fa6af>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 287bf4d4-0042-4b8a-a3a7-0294041e34ea
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    confettiVFX: false
+    countdownDisplayScript: false
+    gridManagerScript: false
+    hostManagerScript: false
+    playerTrackerScript: false
+    startZoneScript: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - gridManagerScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      playerTrackerScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      hostManagerScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      startZoneScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      countdownDisplayScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      confettiVFX: !<reference.VFXComponent> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

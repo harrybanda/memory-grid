@@ -1,0 +1,61 @@
+- !<AssetImportMetadata/56c01955-ffe4-4416-a09d-a7d8f11f7cc0>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 45248faa-4e2a-41a5-899c-49b68c46b1b7
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 45248faa-4e2a-41a5-899c-49b68c46b1b7
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> 1a7148df-6d80-4216-88cb-fae20a8c3125
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/1a7148df-6d80-4216-88cb-fae20a8c3125>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 6c48b4e5-3a53-4900-bda4-058bb51a74fa
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    backButton: false
+    cardPrefab: false
+    cardSpacing: false
+    gridColumns: false
+    gridContainer: false
+    gridOffset: false
+    iconTextures: false
+    lockedTint: false
+    mainMenuScript: false
+    titleText: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - backButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      titleText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      cardPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      gridContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      gridColumns: 2
+      cardSpacing: !<Vec2> {x: 0.080000, y: 0.100000}
+      gridOffset: !<Vec3> {x: 0.000000, y: 0.000000, z: 0.000000}
+      iconTextures: !<reference.Texture[]>
+        []
+      lockedTint: !<Vec4> {x: 0.250000, y: 0.250000, z: 0.250000, w: 0.600000}
+      mainMenuScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

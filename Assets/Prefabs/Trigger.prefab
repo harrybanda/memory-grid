@@ -1,0 +1,84 @@
+- !<ObjectPrefab/1df4fc82-956e-40db-9622-2caec78626b7>
+  PackagePath: ""
+  objects:
+    - !<own> a72cd174-3ba7-4c85-a985-43227116e5b7
+  LazyLoading: false
+  RetainAssets: true
+- !<ColliderComponent/49c649b1-8b60-4106-a92f-3bce2a6ce845>
+  PrefabRemaps:
+    []
+  Name: Physics Collider
+  Enabled: true
+  Shape: !<Box>
+    FitVisual: true
+    Size: {x: 15.000000, y: 15.000000, z: 15.000000}
+  Matter: !<reference> 00000000-0000-0000-0000-000000000000
+  Filter: !<reference> 00000000-0000-0000-0000-000000000000
+  OverlapFilter: !<reference> 00000000-0000-0000-0000-000000000000
+  WorldSettings: !<reference> 00000000-0000-0000-0000-000000000000
+  EnableSmoothing: false
+  PositionTension: 30.000000
+  RotationTension: 30.000000
+  ForceCompound: false
+  Intangible: true
+  ShowCollider: false
+- !<ScriptComponent/7c0f97f2-0b16-46a3-b410-9676faf2777b>
+  PrefabRemaps:
+    []
+  Name: TileTrigger
+  Enabled: true
+  ScriptAsset: !<reference> b7d3910f-8b79-4170-a0d4-ca2f88324b46
+  ScriptInputsDefault:
+    gridX: true
+    gridZ: true
+    direction: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      gridX: 0
+      gridZ: 0
+      direction: forward
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/a72cd174-3ba7-4c85-a985-43227116e5b7>
+  PrefabRemaps:
+    - 49c649b1-8b60-4106-a92f-3bce2a6ce845: 49c649b1-8b60-4106-56d0-c431d59317ba
+    - 7c0f97f2-0b16-46a3-b410-9676faf2777b: 7c0f97f2-0b16-46a3-4bef-6989050d8884
+    - a72cd174-3ba7-4c85-a985-43227116e5b7: a72cd174-3ba7-4c85-567a-bcdd8ee91a48
+    - f975a428-6df0-46d0-a4ce-9f95c18d6c2c: f975a428-6df0-46d0-5b31-606a3e7293d3
+  Name: Trigger
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 0.200000, y: 600.000000, z: 0.200000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> f975a428-6df0-46d0-a4ce-9f95c18d6c2c
+    - !<own> 49c649b1-8b60-4106-a92f-3bce2a6ce845
+    - !<own> 7c0f97f2-0b16-46a3-b410-9676faf2777b
+- !<RenderMeshVisual/f975a428-6df0-46d0-a4ce-9f95c18d6c2c>
+  PrefabRemaps:
+    []
+  Name: Render Mesh Visual
+  Enabled: false
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Materials:
+    - !<reference> 533f1d04-016a-4685-b194-1f85ade27338
+  Mesh: !<reference> e542623c-1432-4bfa-881d-a28905bd9e57
+  Skin: !<reference> 00000000-0000-0000-0000-000000000000
+  BlendShapesEnabled: true
+  BlendNormals: false
+  BlendShapes:
+    {}

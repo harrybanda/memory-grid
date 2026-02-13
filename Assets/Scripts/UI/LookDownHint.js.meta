@@ -1,0 +1,54 @@
+- !<AssetImportMetadata/9c4a04e8-6b06-4549-b917-f1340e33431a>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 8db2167b-dd27-4b10-b678-09ca80fc3ec8
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 8db2167b-dd27-4b10-b678-09ca80fc3ec8
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> dca18b2a-2bc7-413e-ace2-85d3e7e4e226
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/dca18b2a-2bc7-413e-ace2-85d3e7e4e226>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 57fc61d4-badd-43da-8c51-0b7d23af83ba
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cameraObject: false
+    displayDuration: false
+    fadeOutDuration: false
+    hintContainer: false
+    hintMessage: false
+    hintOffset: false
+    hintText: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      hintContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      hintText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      hintMessage: Look at the yellow tile below
+      hintOffset: !<Vec3> {x: 0.000000, y: -10.000000, z: 50.000000}
+      displayDuration: !<float> 4.000000
+      fadeOutDuration: 0.500000
+  ScriptTypes:
+    -
+      {}

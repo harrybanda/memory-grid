@@ -1,0 +1,41 @@
+- !<ObjectPrefab/a6b8cf39-5516-4a3b-b5d0-0e9d6c3841c0>
+  PackagePath: ""
+  objects:
+    - !<own> 647a8ba8-bc8e-41ed-bfdf-31e1ab1adb4c
+  LazyLoading: false
+  RetainAssets: true
+- !<Image/339b646d-03fe-4d7d-bd58-e5385e6e3d66>
+  PrefabRemaps:
+    []
+  Name: Image
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Fit
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Materials:
+    - !<reference> f2901e2c-f514-40df-8192-0356a7750edb
+  FlipX: false
+  FlipY: false
+  RotationAngle: 0
+  Pivot: {x: 0.000000, y: 0.000000}
+  ExtentsTarget: !<reference> 00000000-0000-0000-0000-000000000000
+- !<SceneObject/647a8ba8-bc8e-41ed-bfdf-31e1ab1adb4c>
+  PrefabRemaps:
+    - 339b646d-03fe-4d7d-bd58-e5385e6e3d66: 339b646d-03fe-4d7d-42a7-1ac7a191c299
+    - 647a8ba8-bc8e-41ed-bfdf-31e1ab1adb4c: 647a8ba8-bc8e-41ed-4020-ce1e54e524b3
+  Name: wave
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: -90.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 2.000000, y: 2.000000, z: 2.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 339b646d-03fe-4d7d-bd58-e5385e6e3d66

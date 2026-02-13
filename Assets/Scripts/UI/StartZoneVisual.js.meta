@@ -1,0 +1,46 @@
+- !<AssetImportMetadata/5544b1bc-fb55-4974-9bd3-d0e6a547c981>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> daa8be6a-3af7-434c-ab99-fbe0df9de178
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> daa8be6a-3af7-434c-ab99-fbe0df9de178
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> 2c2e4d7c-a3dd-469a-9823-1245a562ef89
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/2c2e4d7c-a3dd-469a-9823-1245a562ef89>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: dd375e79-5e35-41b5-ae74-59ddb90bc60c
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    particlesScript: false
+    startZonePlane: false
+    zoneCollider: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - startZonePlane: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      zoneCollider: !<reference.ColliderComponent> 00000000-0000-0000-0000-000000000000
+      particlesScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

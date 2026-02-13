@@ -1,0 +1,89 @@
+- !<Material/406bb570-6990-4a84-90aa-bf329d56b670>
+  PackagePath: ""
+  PassesInfo:
+    - !<own> 75a85270-38f6-4d02-852f-851b241fd0f5
+- !<PassInfo/75a85270-38f6-4d02-852f-851b241fd0f5>
+  CachedProperties:
+    - alpha:
+        typeIdx: 1
+        value: 0.000000
+    - baseTex:
+        typeIdx: 9
+        value:
+          id: 64fd53fb-334a-4893-9f5e-3b041342d340
+          sampler:
+            filteringMode: Trilinear
+            wrapModeU: Repeat
+            wrapModeV: Repeat
+            wrapModeW: Repeat
+            borderColor: {x: 0.000000, y: 0.000000, z: 0.000000, w: 0.000000}
+            mipmaps: false
+          type: Texture2D
+    - baseTexTransform:
+        typeIdx: 7
+        value:
+          0: {x: 1.000000, y: 0.000000, z: 0.000000}
+          1: {x: 0.000000, y: 1.000000, z: 0.000000}
+          2: {x: 0.000000, y: 0.000000, z: 1.000000}
+    - materialParamsTexTransform:
+        typeIdx: 7
+        value:
+          0: {x: 1.000000, y: 0.000000, z: 0.000000}
+          1: {x: 0.000000, y: 1.000000, z: 0.000000}
+          2: {x: 0.000000, y: 0.000000, z: 1.000000}
+    - selfIllum:
+        typeIdx: 1
+        value: 0.000000
+  DepthWrite: true
+  DepthTest: true
+  DepthFunction: LessEqual
+  TwoSided: false
+  ColorMask: {x: true, y: true, z: true, w: true}
+  CullMode: Back
+  PolygonOffset: {x: 0.000000, y: 0.000000}
+  FrustumCulling: Auto
+  FrustumCullPad: 0.000000
+  InstanceCount: 1
+  Defines:
+    - ENABLE_DIFFUSE_LIGHTING
+    - ENABLE_DIRECT_LIGHTS
+    - ENABLE_LIGHTING
+  BlendMode: Disabled
+  Properties:
+    PreviewEnabled:
+      typeIdx: 0
+      value: 0
+    baseColor:
+      typeIdx: 5
+      value: {x: 0.630000, y: 0.700000, z: 0.720000, w: 1.000000}
+    materialParamsTex:
+      typeIdx: 9
+      value:
+        id: 2fefc11b-1158-4f13-a21c-a6a020ad251f
+        sampler:
+          filteringMode: Bilinear
+          wrapModeU: ClampToEdge
+          wrapModeV: ClampToEdge
+          wrapModeW: ClampToEdge
+          borderColor: {x: 0.000000, y: 0.000000, z: 0.000000, w: 0.000000}
+          mipmaps: false
+        type: Texture2D
+    metallic:
+      typeIdx: 1
+      value: 0.000000
+    roughness:
+      typeIdx: 1
+      value: 1.000000
+    uv2Offset:
+      typeIdx: 3
+      value: {x: 1.000000, y: 1.000000}
+    uv2Scale:
+      typeIdx: 3
+      value: {x: 1.000000, y: 1.000000}
+    uv3Offset:
+      typeIdx: 3
+      value: {x: 1.000000, y: 1.000000}
+    uv3Scale:
+      typeIdx: 3
+      value: {x: 1.000000, y: 1.000000}
+  Pass: !<reference> fb154eed-c70e-49e3-abb3-e83dfd0f1046

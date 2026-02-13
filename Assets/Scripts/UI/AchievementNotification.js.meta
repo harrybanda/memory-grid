@@ -1,0 +1,57 @@
+- !<AssetImportMetadata/cbde2b47-bdcb-4c27-86f9-fc6c71820509>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 25f27f05-4f98-4718-9e83-fe04a7fc3bc2
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 25f27f05-4f98-4718-9e83-fe04a7fc3bc2
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> a70352ec-d369-4343-bf2a-4d255c5ad80e
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/a70352ec-d369-4343-bf2a-4d255c5ad80e>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 7d3b9be6-6b2a-404e-bee4-258d43f906dc
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    descriptionLabelObject: false
+    displayDuration: false
+    iconObject: false
+    iconTextureProperty: false
+    iconTextures: false
+    notificationAudio: false
+    notificationRoot: false
+    titleLabelObject: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - notificationRoot: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      titleLabelObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      descriptionLabelObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      iconObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      iconTextures: !<reference.Texture[]>
+        []
+      notificationAudio: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+      iconTextureProperty: baseTex
+      displayDuration: 2.200000
+  ScriptTypes:
+    -
+      {}

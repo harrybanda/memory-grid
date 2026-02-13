@@ -1,0 +1,50 @@
+- !<AssetImportMetadata/0b05869d-3b65-4537-9441-51764c464f52>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 31e4b841-cbf5-4b87-a7af-fdc290fe0042
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 31e4b841-cbf5-4b87-a7af-fdc290fe0042
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> 069f653e-4439-4495-8902-2db29bbdb020
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/069f653e-4439-4495-8902-2db29bbdb020>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 2255458f-591d-4eb1-bcc0-a5f69e368c98
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    gridParent: false
+    scaleTiles: false
+    tileMaterial: false
+    tilePrefab: false
+    triggerPrefab: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - gridParent: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      tileMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      tilePrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      scaleTiles: true
+      triggerPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

@@ -1,0 +1,68 @@
+- !<AssetImportMetadata/78d8beea-908c-46d7-8bda-3ead174161ef>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> bca084fc-ac10-420c-9bcd-28f6d51fb35c
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> bca084fc-ac10-420c-9bcd-28f6d51fb35c
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> 2f1fa2d5-55c1-4f45-b3d9-a363e31c6a21
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/2f1fa2d5-55c1-4f45-b3d9-a363e31c6a21>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: b5d8af4a-a8e8-4380-b501-90b70a8bafef
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    achievementsButton: false
+    achievementsContainer: false
+    achievementsUI: false
+    floorPlacementObject: false
+    floorPlacementParent: false
+    floorPlacementPrefab: false
+    gameVersion: false
+    interfaceContainer: false
+    levelText: false
+    menuContainer: false
+    resetAllButton: false
+    resetProgressButton: false
+    startButton: false
+    versionText: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - interfaceContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      menuContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      achievementsContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      startButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      achievementsButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      resetProgressButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      resetAllButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      versionText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      levelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
+      gameVersion: v1.0.0
+      floorPlacementPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      floorPlacementParent: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      floorPlacementObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      achievementsUI: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

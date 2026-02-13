@@ -1,0 +1,59 @@
+- !<AssetImportMetadata/4ebdb371-02ec-4c60-8649-b6a678dc0ccd>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 648ba37a-6627-4921-be40-1925fa17b7b7
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 648ba37a-6627-4921-be40-1925fa17b7b7
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> 59b93c68-c104-4792-a182-705feb8d33c9
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/59b93c68-c104-4792-a182-705feb8d33c9>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 16566069-62ba-4a91-ad1c-02735cfb611b
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    audioPlayer: false
+    cameraObject: false
+    completionTrack: false
+    countdownTrack: false
+    errorTrack: false
+    gridManagerScript: false
+    startZoneScript: false
+    stepTracks: false
+    watchTrack: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      gridManagerScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      startZoneScript: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
+      audioPlayer: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+      stepTracks: !<reference.AudioTrackAsset[]>
+        []
+      completionTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+      errorTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+      countdownTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+      watchTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

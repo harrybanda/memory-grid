@@ -1,0 +1,44 @@
+- !<AssetImportMetadata/4318e1f5-98fa-40bc-abe2-322053579b4e>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> fd2fae1d-ef4b-4c82-b610-a101fdb71a45
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> fd2fae1d-ef4b-4c82-b610-a101fdb71a45
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> b4d0e3f5-72af-45ba-83d8-c3f40839aa64
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/b4d0e3f5-72af-45ba-83d8-c3f40839aa64>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 4f6855fa-66a8-4d3b-9f3b-ad5f14f052d0
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    countdownText: false
+    textParent: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - countdownText: !<reference.Text3D> 00000000-0000-0000-0000-000000000000
+      textParent: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

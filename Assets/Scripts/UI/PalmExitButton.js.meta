@@ -1,0 +1,44 @@
+- !<AssetImportMetadata/782eb98a-b9c2-4243-8a22-de39f8ca4cb5>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 0543a3f9-0b3b-4be7-8034-7bf70b283331
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 0543a3f9-0b3b-4be7-8034-7bf70b283331
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> 818d08ea-43a2-4e3e-8e2c-52f0c30f7529
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/818d08ea-43a2-4e3e-8e2c-52f0c30f7529>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 9d2d0321-9352-4ece-85d0-3d72a809d427
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    exitButton: false
+    exitButtonContainer: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - exitButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      exitButtonContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
