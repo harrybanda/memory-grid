@@ -14,6 +14,8 @@ The project includes all required packages (Surface Placement, Spectacles Intera
 
 This game uses **Device Tracking (World Mode)** to track the player's position in real-world space and map it onto a virtual 5×5 grid placed on the floor. The core mechanic relies on detecting when the player steps on specific grid tiles.
 
+![Memory Grid gameplay](docs/images/gameplay-hero.png)
+
 ### Features
 
 - **11 levels** — Path length increases from 5 to 25 tiles
@@ -26,6 +28,22 @@ This game uses **Device Tracking (World Mode)** to track the player's position i
 This project implements a **collider-based vertical activation system** for reliable **grid-based** tile detection in walking-based Spectacles games—replacing error-prone position/distance checks with physics-based overlap detection. Purpose-built for structured tile grids (not open-world or sparse zones). For details on the problem, solution, scope, and how to reuse the pattern:
 
 **[docs/COLLIDER_BASED_ACTIVATION.md](docs/COLLIDER_BASED_ACTIVATION.md)**
+
+### Screenshots
+
+| Main menu | Achievements | Robot host |
+|-----------|--------------|------------|
+| ![Main menu](docs/images/main-menu.png) | ![Achievements](docs/images/achievements.png) | ![Host](docs/images/host-dialogue.png) |
+
+### Reset Progress Button
+
+The **Reset Progress** button appears on the main menu when you've advanced past Level 1. It lets you clear your level progress and start over from Level 1, while keeping all unlocked achievements.
+
+- **When visible:** Level 2 or higher (hidden at Level 1 since there's nothing to reset)
+- **What it does:** Resets current level to 1, clears retry counts — achievements remain unlocked
+- **Reset All** (debug): Only visible when `DebugConfig.ENABLED` is true; clears levels, retries, and achievements
+
+![Reset Progress button on main menu](docs/images/reset-progress-button.png)
 
 ### FOV-Optimized Design
 
@@ -94,6 +112,8 @@ The project is pre-configured—open the `.esproj` file to run. The following st
    - Set Tracking Mode to **World**
 3. Import the **Surface Placement** package from the Asset Library
 
+![Device Tracking setup](docs/images/lens-device-tracking.png)
+
 ### 2. Surface Placement Integration
 
 1. **Add the Surface Placement prefab** to your scene
@@ -110,6 +130,8 @@ The project is pre-configured—open the `.esproj` file to run. The following st
    - `SubtitleText` - Text for host dialogue
 
 3. **Attach PlacementBridge.js** to the `ObjectVisuals` object
+
+![Scene hierarchy](docs/images/lens-hierarchy.png)
 
 **Placement flow (Start → Game):**
 
@@ -167,6 +189,8 @@ Add an arrow as a child of your tile prefab:
 3. Rotate flat on the tile (X = -90°)
 4. The script automatically rotates arrows to point toward the next tile
 
+![Tile prefab with Arrow](docs/images/lens-tile-prefab.png)
+
 ### 6. Trigger Prefab Setup
 
 The game uses collision-based detection for reliable tile entry. This filters out head tilts and only detects actual walking.
@@ -185,6 +209,8 @@ The game uses collision-based detection for reliable tile entry. This filters ou
 
 3. **Assign in GridManager:**
    - Drag your trigger prefab to the **Trigger Prefab** input
+
+![Trigger prefab setup](docs/images/lens-trigger-prefab.png)
 
 **How it works:**
 
@@ -286,22 +312,40 @@ flowchart LR
 ## Visual Guide
 
 ### Initial State (after placement)
+![Grid after placement](docs/images/grid-initial.png)
+
 - ⬜ **White (dim)** = All tiles at 15% opacity (background)
 - 🟨 **Yellow (bright)** = Start tile at ~77% opacity (focal point)
 
 ### During COUNTDOWN
+![Countdown phase](docs/images/grid-countdown.png)
+
 - Start tile stays highlighted as the focal point (no arrows yet)
 
 ### During MEMORIZE (progressive reveal)
+![Path reveal](docs/images/grid-memorize.png)
+
 - 🟨 **Yellow** = Start tile (with arrow)
 - 🟩 **Green** = Path tiles revealed one-by-one (with arrows)
 - 🟦 **Blue** = End tile (no arrow, revealed last)
 
 ### During PLAYING
+![Walking the path](docs/images/grid-playing.png)
+
 - 🟨 **Yellow** = Start tile (stays visible)
 - ⬜ **White** = All other tiles at ~50% opacity with a subtle idle alpha pulse
 - 🟦 **Blue** = End tile (stays visible)
 - 🟩 **Green** = Tiles turn green when stepped on correctly
+
+### Completed & Failed
+| Success | Wrong step |
+|---------|------------|
+| ![Level complete](docs/images/grid-completed.png) | ![Wrong tile](docs/images/grid-failed.png) |
+
+### Between Rounds
+| Achievement notification | Start zone (return here for next round) |
+|--------------------------|----------------------------------------|
+| ![Achievement unlock popup](docs/images/achievement-notification.png) | ![Start zone marker](docs/images/start-zone.png) |
 
 ## Configuration
 
