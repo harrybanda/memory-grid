@@ -121,7 +121,7 @@ var IntroConfig = {
 	POST_REVEAL_DELAY: 0.5,
 
 	// Delay after player sees start tile before countdown begins (seconds)
-	START_FOCUS_DELAY: 1.5,
+	START_FOCUS_DELAY: 0.3,
 };
 
 /**

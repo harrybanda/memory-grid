@@ -29,6 +29,14 @@ This project implements a **collider-based vertical activation system** for reli
 
 **[docs/COLLIDER_BASED_ACTIVATION.md](docs/COLLIDER_BASED_ACTIVATION.md)**
 
+### Design & Development Article
+
+For a deeper look at the design decisions and development process behind Memory Grid, see the accompanying article on Medium:
+
+**[Memory Grid: What I Learned Building a Path-Following Game for Spectacles AR](https://medium.com/@username/memory-grid-spectacles-ar)** *(placeholder — link to be added after publishing)*
+
+The article covers the inspiration for the project, designing for Spectacles' limited FOV (progressive reveal, start-anchored grid, path generation), solving unreliable tile detection with collider-based triggers, and building the achievement system in Lens Studio. It's written as a narrative rather than documentation—useful if you want to understand the *why* behind the implementation.
+
 ### Screenshots
 
 | Main menu | Achievements | Robot host |
@@ -76,6 +84,7 @@ Scripts/
 │   ├── CountdownDisplay.js   # Component: 3-2-1 countdown on floor
 │   ├── LookDownHint.js       # Component: Hint text parented to camera after floor placement
 │   ├── MainMenuManager.js    # Component: Main menu with Start/Achievements buttons
+│   ├── SpaceReminder.js      # Component: Pre-placement message ("Make sure you have enough open space")
 │   ├── PalmExitButton.js     # Component: Exit button (place under wrist in scene; show/hide by game state)
 │   ├── StartZoneVisual.js    # Component: Start zone marker with collision detection
 │   └── StartZoneParticles.js # Component: Rising particle effect for start zone
@@ -154,23 +163,47 @@ Create empty SceneObjects and attach scripts:
 
 | SceneObject | Script | Key Inputs |
 |-------------|--------|------------|
-| MainMenu | `UI/MainMenuManager.js` | InterfaceContainer, MenuContainer, AchievementsContainer, StartButton, AchievementsButton, ResetProgressButton, ResetAllButton (optional, debug), LevelText, FloorPlacementPrefab OR FloorPlacementObject, FloorPlacementParent, AchievementsUI |
+| MainMenu | `UI/MainMenuManager.js` | InterfaceContainer, MenuContainer, AchievementsContainer, StartButton, AchievementsButton, ResetProgressButton, ResetAllButton (optional, debug), LevelText, SpaceReminder (optional), FloorPlacementPrefab OR FloorPlacementObject, FloorPlacementParent, AchievementsUI |
 | SaveManager | `Utils/SaveManager.js` | *(none - just attach to any SceneObject)* |
 | AudioManager | `Utils/AudioManager.js` | VoiceLines[] (all audio files), AudioPlayer |
 | AchievementNotification | `UI/AchievementNotification.js` | NotificationRoot, TitleLabelObject, DescriptionLabelObject, IconObject, IconTextures[] (optional if AchievementsUI has icons), NotificationAudio, IconTextureProperty, DisplayDuration |
 | AchievementsUI | `UI/AchievementsUI.js` | BackButton, CardPrefab, GridContainer, IconTextures[] (all PNGs), LockedTint, MainMenuScript |
 | PalmExitButton | `UI/PalmExitButton.js` | ExitButton (or ExitButtonContainer as alias) |
 | LookDownHint | `UI/LookDownHint.js` | Camera, HintContainer, HintText |
+| SpaceReminder | `UI/SpaceReminder.js` | Camera, ReminderContainer, ReminderMessage, DisplayDuration, FadeOutDuration, PopInAudio (optional) *(shows before floor placement)* |
 | ObjectVisuals* | `Core/PlacementBridge.js` | GameStateManager |
 | GridManager | `Grid/GridManager.js` | GridParent, TilePrefab, TriggerPrefab, ScaleTiles |
 | PlayerTracker | `Player/PlayerTracker.js` | Camera, GridManager, AudioPlayer, StepTracks[25], CompletionTrack, ErrorTrack, CountdownTrack, WatchTrack |
 | GameStateManager | `Core/GameStateManager.js` | GridManager, PlayerTracker, HostManager (optional), StartZoneVisual (optional), CountdownDisplay (optional), ConfettiVFX (optional) |
-| HostManager | `Host/HostManager.js` | HostObject, Camera, SubtitleText (optional), ForwardDistance, HeightOffset, LateralOffset, FollowEasing |
+| HostManager | `Host/HostManager.js` | HostObject, Camera, SubtitleText (optional), ForwardDistance, HeightOffset, LateralOffset, FollowEasing, RiseFromFloor (optional), RiseFromFloorOffset, RiseDuration |
 | StartZoneVisual | `UI/StartZoneVisual.js` | StartZonePlane, ZoneCollider (required), ParticlesScript (optional) |
 | StartZoneParticles | `UI/StartZoneParticles.js` | ParticlePrefab, SpawnRate, RiseSpeed, Lifetime, StartScale |
 | CountdownDisplay | `UI/CountdownDisplay.js` | CountdownText3D, TextParent |
 
 *ObjectVisuals is from the Surface Placement package
+
+### 3.5 Space Reminder Setup (Optional)
+
+Before floor placement, you can show a message reminding players to ensure they have enough open space. This is optional—if not configured, floor placement appears immediately when Start is pressed.
+
+1. **Create a SpaceReminder object:**
+   - Create a new SceneObject (e.g. "SpaceReminder")
+   - Add a child with a **Text** or **Text3D** component for the message
+   - Attach `UI/SpaceReminder.js` to the parent
+
+2. **Assign in SpaceReminder script:**
+   - **Camera** — Main camera
+   - **Reminder Container** — The parent object containing the text
+   - **Reminder Message** — Default: "Make sure you have enough open space around you before placing the grid on the floor."
+   - **Display Duration** — Seconds to show (default 3)
+   - **Fade Out Duration** — Seconds to fade out (default 0.6)
+   - **Pop In Duration** — Seconds for the pop-in scale animation (default 0.35)
+   - **Pop In Audio** — Optional. AudioComponent that plays when the message appears
+
+3. **Assign in MainMenuManager:**
+   - **Space Reminder** — Reference to the SpaceReminder script component
+
+The message displays for a few seconds, fades out, then floor placement appears.
 
 ### 4. Tile Prefab
 

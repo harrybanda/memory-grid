@@ -38,6 +38,7 @@
     menuContainer: false
     resetAllButton: false
     resetProgressButton: false
+    spaceReminder: false
     startButton: false
     versionText: false
   ScriptTypesHidden:
@@ -59,6 +60,7 @@
       versionText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       levelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       gameVersion: v1.0.0
+      spaceReminder: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
       floorPlacementPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
       floorPlacementParent: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       floorPlacementObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000

@@ -1,0 +1,56 @@
+- !<AssetImportMetadata/b12a6593-f28f-43c3-91e2-6b6841267cb6>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 07ac9580-30c9-4632-abcb-6e6c189360c3
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 07ac9580-30c9-4632-abcb-6e6c189360c3
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> f29bf768-79f1-47f5-ba4d-d6b66512eabb
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/f29bf768-79f1-47f5-ba4d-d6b66512eabb>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 69226aa4-50ed-4153-9c68-6751ce818f14
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cameraObject: false
+    displayDuration: false
+    fadeOutDuration: false
+    popInAudio: false
+    popInDuration: false
+    reminderContainer: false
+    reminderMessage: false
+    reminderOffset: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      reminderContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      reminderMessage: Make sure you have enough open space around you
+      reminderOffset: !<Vec3> {x: 0.000000, y: 0.000000, z: 80.000000}
+      displayDuration: !<float> 3.000000
+      fadeOutDuration: 0.600000
+      popInDuration: 0.350000
+      popInAudio: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

@@ -1117,6 +1117,9 @@
     subtitleText: true
     lateralOffset: true
     followEasing: true
+    riseFromFloor: true
+    riseFromFloorOffset: true
+    riseDuration: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
@@ -1128,6 +1131,9 @@
       heightOffset: !<float> 100.000000
       lateralOffset: !<float> 0.000000
       followEasing: 0.080000
+      riseFromFloor: true
+      riseFromFloorOffset: !<float> 15.000000
+      riseDuration: 0.500000
   ScriptTypes:
     "":
       {}

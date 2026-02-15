@@ -11,6 +11,9 @@
 // @input float heightOffset = 150 {"label": "Height Offset (cm)", "hint": "Height above the floor"}
 // @input float lateralOffset = 0 {"label": "Lateral Offset (cm)", "hint": "Left/right offset (negative = left, positive = right)"}
 // @input float followEasing = 0.08 {"label": "Follow Easing", "hint": "How smoothly the host follows the camera (0.01 = very smooth, 1.0 = instant)"}
+// @input bool riseFromFloor = true {"label": "Rise From Floor", "hint": "Animate host from floor to eye level when first shown (player's gaze starts down)"}
+// @input float riseFromFloorOffset = 15 {"label": "Rise Start Offset (cm)", "hint": "Height above floor when rise starts (so host is visible)"}
+// @input float riseDuration = 1.5 {"label": "Rise Duration (s)", "hint": "Seconds to animate from floor to target height"}
 
 var Constants = require("../Utils/Constants");
 var DialogueLines = require("../Utils/DialogueLines");
@@ -40,6 +43,10 @@ var billboardEnabled = true;
 
 // Floor Y stored from initialize (keeps host at consistent height)
 var hostFloorY = 0;
+
+// Rise-from-floor animation (host starts low, animates up to eye level)
+var isRisingFromFloor = false;
+var riseCurrentY = 0;
 
 // Talking animation: gentle floating/bobbing while speaking (applied on top of follow position)
 var talkingAnimation = {
@@ -162,7 +169,7 @@ function cancelScaleAnimation() {
 }
 
 /**
- * Shows the host with a smooth scale-in
+ * Shows the host with a smooth scale-in and optional rise-from-floor animation
  */
 function show() {
 	if (!isSceneObjectValid(script.hostObject)) return;
@@ -173,9 +180,16 @@ function show() {
 	isVisible = true;
 	script.hostObject.enabled = true;
 
-	// Snap to current target position so host appears in front of camera instantly
 	var targetPos = getTargetPosition();
-	if (targetPos) {
+	var heightOff = script.heightOffset !== undefined ? script.heightOffset : Constants.HostConfig.HEIGHT_OFFSET;
+	var riseStartY = hostFloorY + (script.riseFromFloorOffset || 15);
+
+	// Start at floor level if rise-from-floor is enabled, so host is in player's down gaze
+	if (targetPos && script.riseFromFloor) {
+		isRisingFromFloor = true;
+		riseCurrentY = riseStartY;
+		script.hostObject.getTransform().setWorldPosition(new vec3(targetPos.x, riseStartY, targetPos.z));
+	} else if (targetPos) {
 		script.hostObject.getTransform().setWorldPosition(targetPos);
 	}
 
@@ -187,10 +201,16 @@ function show() {
 	if (startScale < 0.01) startScale = 0;
 
 	var progress = targetScale > 0 ? startScale / targetScale : 0;
+	var riseProgress = 0;
+	var riseDur = Math.max(0.01, script.riseDuration || 0.5);
 
 	currentScaleEvent = createSafeEvent("UpdateEvent");
 	if (!currentScaleEvent) {
 		transform.setLocalScale(new vec3(targetScale, targetScale, targetScale));
+		if (script.riseFromFloor && targetPos) {
+			script.hostObject.getTransform().setWorldPosition(targetPos);
+			isRisingFromFloor = false;
+		}
 		return;
 	}
 
@@ -198,10 +218,12 @@ function show() {
 		if (!isSceneObjectValid(script.hostObject)) {
 			currentScaleEvent.enabled = false;
 			currentScaleEvent = null;
+			isRisingFromFloor = false;
 			return;
 		}
 
-		progress += getDeltaTime() * 2.5; // ~0.4 second scale-in
+		var dt = getDeltaTime();
+		progress += dt * 2.5; // ~0.4 second scale-in
 		var t = Math.min(progress, 1.0);
 
 		// Ease-out cubic (smooth deceleration)
@@ -210,13 +232,26 @@ function show() {
 
 		transform.setLocalScale(new vec3(scale, scale, scale));
 
+		// Rise-from-floor: animate Y from floor to target height
+		if (isRisingFromFloor && targetPos) {
+			riseProgress += dt / riseDur;
+			var riseT = Math.min(riseProgress, 1.0);
+			var riseEaseT = 1 - Math.pow(1 - riseT, 2); // Ease-out quad
+			riseCurrentY = riseStartY + (targetPos.y - riseStartY) * riseEaseT;
+
+			if (riseT >= 1.0) {
+				isRisingFromFloor = false;
+				riseCurrentY = targetPos.y;
+			}
+		}
+
 		if (t >= 1.0) {
 			currentScaleEvent.enabled = false;
 			currentScaleEvent = null;
 		}
 	});
 
-	print("HostManager: Scale-in");
+	print("HostManager: Scale-in" + (script.riseFromFloor ? " + rise from floor" : ""));
 }
 
 /**
@@ -233,6 +268,7 @@ function hide() {
 	}
 
 	cancelScaleAnimation();
+	isRisingFromFloor = false;
 
 	isVisible = false;
 
@@ -307,12 +343,13 @@ function update(deltaTime) {
 	if (!targetPos) return;
 
 	// 2. Smoothly lerp toward target (frame-rate independent easing)
+	// During rise-from-floor, use riseCurrentY instead of lerping Y
 	var currentPos = script.hostObject.getTransform().getWorldPosition();
 	var easing = script.followEasing || 0.08;
 	var lerpFactor = 1 - Math.pow(1 - easing, deltaTime * 60);
 
 	var newX = currentPos.x + (targetPos.x - currentPos.x) * lerpFactor;
-	var newY = currentPos.y + (targetPos.y - currentPos.y) * lerpFactor;
+	var newY = isRisingFromFloor ? riseCurrentY : currentPos.y + (targetPos.y - currentPos.y) * lerpFactor;
 	var newZ = currentPos.z + (targetPos.z - currentPos.z) * lerpFactor;
 
 	// 3. Add bobbing/sway offset if speaking

@@ -17,6 +17,7 @@ var Constants = require("../Utils/Constants");
 
 // @ui {"widget": "separator"}
 // @ui {"widget": "label", "label": "Scene References"}
+// @input Component.ScriptComponent spaceReminder {"label": "Space Reminder", "hint": "Optional. Shows 'Make sure you have enough open space' before floor placement, then fades out."}
 // @input Asset.ObjectPrefab floorPlacementPrefab {"label": "Floor Placement Prefab", "hint": "Prefab for Surface Placement - will be instantiated fresh each game (Option A)"}
 // @input SceneObject floorPlacementParent {"label": "Floor Placement Parent", "hint": "Parent object for instantiated placement"}
 // @input SceneObject floorPlacementObject {"label": "Floor Placement Object", "hint": "Direct scene reference (Option B - use if prefab doesn't work)"}
@@ -202,7 +203,12 @@ function setupButton(sceneObject, callback) {
  */
 function onStartPressed() {
 	hideInterface();
-	createFloorPlacement();
+
+	if (script.spaceReminder && script.spaceReminder.showWithCallback) {
+		script.spaceReminder.showWithCallback(createFloorPlacement);
+	} else {
+		createFloorPlacement();
+	}
 }
 
 /**
