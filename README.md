@@ -33,7 +33,7 @@ This project implements a **collider-based vertical activation system** for reli
 
 For a deeper look at the design decisions and development process behind Memory Grid, see the accompanying article on Medium:
 
-**[Memory Grid: What I Learned Building a Path-Following Game for Spectacles AR](https://medium.com/@username/memory-grid-spectacles-ar)** *(placeholder — link to be added after publishing)*
+**[Memory Grid: What I Learned Building a Path-Following Game for Spectacles AR](https://medium.com/@harrybanda/what-i-learned-building-a-spatial-ar-memory-game-for-spectacles-b177b0d7648a)**
 
 The article covers the inspiration for the project, designing for Spectacles' limited FOV (progressive reveal, start-anchored grid, path generation), solving unreliable tile detection with collider-based triggers, and building the achievement system in Lens Studio. It's written as a narrative rather than documentation—useful if you want to understand the *why* behind the implementation.
 
