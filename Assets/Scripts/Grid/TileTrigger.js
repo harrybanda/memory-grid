@@ -17,6 +17,8 @@
  * that PlayerTracker listens for.
  */
 
+var Constants = require("../Utils/Constants");
+
 // Reference to the collider component on this object
 var collider = null;
 
@@ -55,13 +57,16 @@ function resetTrigger() {
  * @param {CollisionEnterEventArgs} eventArgs - Collision event data
  */
 function onOverlapEnter(eventArgs) {
-	if (hasTriggered) return;
-
 	// Only accept overlaps from the actual camera collider.
 	// This prevents child UI/interactable colliders from triggering tiles early.
 	if (!isCameraColliderOverlap(eventArgs)) {
 		return;
 	}
+
+	// Logged before the latch so repeat entries on already-fired tiles are still visible
+	logCameraEnter(eventArgs);
+
+	if (hasTriggered) return;
 
 	// Mark as triggered to prevent double-fires
 	hasTriggered = true;
@@ -73,6 +78,27 @@ function onOverlapEnter(eventArgs) {
 			z: script.gridZ,
 			direction: script.direction,
 		});
+	}
+}
+
+/**
+ * Debug: logs a camera entry with the head's horizontal distance from this tile's centre
+ * @param {Object} eventArgs
+ */
+function logCameraEnter(eventArgs) {
+	if (!Constants.DebugConfig.LOG_TRIGGER_ENTERS) return;
+
+	var headPos = getOtherColliderFromEvent(eventArgs).getSceneObject().getTransform().getWorldPosition();
+	var tilePos = script.getSceneObject().getTransform().getWorldPosition();
+	var dx = headPos.x - tilePos.x;
+	var dz = headPos.z - tilePos.z;
+
+	var message = "ENTER (" + script.gridX + "," + script.gridZ + ") t=" + getTime().toFixed(2) + " d=" + Math.sqrt(dx * dx + dz * dz).toFixed(1) + "cm" + (hasTriggered ? " [already fired]" : "");
+
+	if (global.textLogger) {
+		global.textLogger.log(message);
+	} else {
+		print(message);
 	}
 }
 

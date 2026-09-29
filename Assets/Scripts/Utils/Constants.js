@@ -12,6 +12,10 @@ var DebugConfig = {
 	// Only the end tile (last tile in path) needs to be reached
 	// Use this to quickly test all 11 levels without memorizing paths
 	SKIP_PATH_CHECK: false,
+
+	// Log every camera entry into a tile trigger, including tiles that already fired this round,
+	// with the head's horizontal distance from the tile centre (for the peek/step detection probe)
+	LOG_TRIGGER_ENTERS: false,
 };
 
 /**

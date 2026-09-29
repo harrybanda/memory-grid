@@ -923,6 +923,28 @@ function getTileWorldPosition(gridX, gridZ) {
 	return null;
 }
 
+/**
+ * Sets the color of a single tile
+ * @param {number} gridX - Grid X coordinate
+ * @param {number} gridZ - Grid Z coordinate
+ * @param {vec4} color - RGBA color value
+ */
+function setTileColorAt(gridX, gridZ, color) {
+	if (!isValidTilePosition(gridX, gridZ)) return;
+	setTileColor(gridConfig.tileObjects[gridZ][gridX], color);
+}
+
+/**
+ * Converts a world position into GridParent-local centimeters (no tile binning)
+ * +Z points toward the player at placement; tile centers come from getTileWorldPosition
+ * @param {vec3} worldPos - World position to convert
+ * @returns {vec3} Local position, or null if the grid isn't ready
+ */
+function worldToGridLocal(worldPos) {
+	if (!script.gridParent || !worldPos) return null;
+	return script.gridParent.getTransform().getInvertedWorldTransform().multiplyPoint(worldPos);
+}
+
 // Export functions on script (for SceneObject component scripts)
 script.initialize = initialize;
 script.generateNewPath = generateNewPath;
@@ -953,6 +975,13 @@ script.getGridParent = getGridParent;
 script.getTileWorldPosition = getTileWorldPosition;
 script.onTriggerEntered = onTriggerEntered;
 script.resetTriggers = resetTriggers;
+script.setTileColorAt = setTileColorAt;
+script.worldToGridLocal = worldToGridLocal;
+
+// Scene-level mode controllers find the current session's grid here
+// (a fresh Surface prefab is created on every Start, so the latest instance wins)
+global.PathFinder = global.PathFinder || {};
+global.PathFinder.GridManager = script;
 
 // Initialize idle pulse animation loop
 setupIdlePulseUpdate();

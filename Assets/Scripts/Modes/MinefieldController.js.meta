@@ -1,0 +1,46 @@
+- !<AssetImportMetadata/4610d378-0c58-46e8-bb76-76dc9d28ec37>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> 22e1afeb-6c5b-42af-a68d-386dfab93ce3
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> 22e1afeb-6c5b-42af-a68d-386dfab93ce3
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> ec46bc1f-624b-43df-856d-b2865466527a
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/ec46bc1f-624b-43df-856d-b2865466527a>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 33a51d86-db32-40ca-9959-e84102925932
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cameraObject: false
+    goTrack: false
+    sfxPlayer: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      sfxPlayer: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
+      goTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

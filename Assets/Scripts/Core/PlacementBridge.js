@@ -97,6 +97,14 @@ function onPlacementCompleted() {
 		global.PathFinder.PalmExit.show();
 	}
 
+	// Route to the selected mode's controller if one registered itself; otherwise Classic
+	var mode = global.PathFinder && global.PathFinder.Mode;
+	var modes = global.PathFinder && global.PathFinder.Modes;
+	if (mode && mode !== "classic" && modes && modes[mode] && modes[mode].onGridPlaced) {
+		modes[mode].onGridPlaced(gridOrigin, floorY);
+		return;
+	}
+
 	// Notify GameStateManager
 	if (script.gameStateManager && script.gameStateManager.onGridPlaced) {
 		script.gameStateManager.onGridPlaced(gridOrigin, floorY);

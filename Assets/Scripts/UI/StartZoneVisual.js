@@ -179,3 +179,11 @@ script.getZoneWorldPosition = getZoneWorldPosition;
 script.isPlayerCurrentlyInZone = isPlayerCurrentlyInZone;
 script.onPlayerEntered = onPlayerEntered;
 script.onPlayerExited = onPlayerExited;
+script.getZoneObject = function () {
+	return script.startZonePlane;
+};
+
+// Scene-level mode controllers find the current session's start zone here
+// (a fresh Surface prefab is created on every Start, so the latest instance wins)
+global.PathFinder = global.PathFinder || {};
+global.PathFinder.StartZone = script;

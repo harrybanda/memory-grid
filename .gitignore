@@ -23,3 +23,9 @@ Workspaces/**
 *.log
 Thumbs.db
 
+
+# Local MCP config (contains the Lens Studio auth token)
+.mcp.json
+
+# Scratch output of the sound generators (the generators themselves live in tools/sfx)
+tempAssetGen/

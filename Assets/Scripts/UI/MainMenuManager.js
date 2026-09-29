@@ -8,6 +8,7 @@ var Constants = require("../Utils/Constants");
 // @input SceneObject menuContainer {"label": "Menu Container", "hint": "Menu content container"}
 // @input SceneObject achievementsContainer {"label": "Achievements Container", "hint": "Achievements content container"}
 // @input SceneObject startButton {"label": "Start Button", "hint": "Button to start the game"}
+// @input SceneObject minefieldButton {"label": "Minefield Button", "hint": "Optional. Starts the Minefield mode"}
 // @input SceneObject achievementsButton {"label": "Achievements Button", "hint": "Button to view achievements"}
 // @input SceneObject resetProgressButton {"label": "Reset Progress Button", "hint": "Button to clear saved progress"}
 // @input SceneObject resetAllButton {"label": "Reset All Button (Debug)", "hint": "Debug-only button that calls Save.resetAll()"}
@@ -196,6 +197,16 @@ function setupButton(sceneObject, callback) {
 
 	print("MainMenuManager: No button component found on " + sceneObject.name);
 	return null;
+}
+
+/**
+ * Selects a game mode, then starts placement
+ * @param {string} mode - "classic" or a mode registered in global.PathFinder.Modes
+ */
+function startMode(mode) {
+	global.PathFinder = global.PathFinder || {};
+	global.PathFinder.Mode = mode;
+	onStartPressed();
 }
 
 /**
@@ -401,8 +412,17 @@ function initialize() {
 	}
 
 	// Setup Start button
+	// Every mode button sets the mode explicitly: the global outlives each game session
 	if (script.startButton) {
-		startBtn = setupButton(script.startButton, onStartPressed);
+		startBtn = setupButton(script.startButton, function () {
+			startMode("classic");
+		});
+	}
+
+	if (script.minefieldButton) {
+		setupButton(script.minefieldButton, function () {
+			startMode("minefield");
+		});
 	}
 
 	// Setup Achievements button

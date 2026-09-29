@@ -15,6 +15,9 @@ var fadeTimer = 0;
 var isFading = false;
 var originalAlpha = 1.0;
 
+// Incremented on every show/hide; a fade timer only acts if its token is still current
+var showToken = 0;
+
 /**
  * Initialize the hint system
  */
@@ -47,13 +50,28 @@ function initialize() {
 }
 
 /**
- * Show the hint
+ * Show the default hint message
  */
 function show() {
+	showFor(getDefaultMessage(), script.displayDuration || 4.0);
+}
+
+/**
+ * Show a message, fading it out after the given seconds (0 or less keeps it up until hide())
+ * Each call invalidates earlier fade timers so they can't fade a newer message early
+ * @param {string} text - Message to show
+ * @param {number} seconds - Seconds before fading out
+ */
+function showFor(text, seconds) {
+	showToken++;
+	var token = showToken;
+
 	// Always reset and re-show (allows re-displaying between rounds)
 	isShowing = true;
 	isFading = false;
 	fadeTimer = 0;
+
+	setMessage(text);
 
 	// Reset alpha
 	setTextAlpha(1.0);
@@ -64,11 +82,19 @@ function show() {
 	}
 
 	// Schedule auto-hide
-	var hideDelay = script.createEvent("DelayedCallbackEvent");
-	hideDelay.bind(function () {
-		startFadeOut();
-	});
-	hideDelay.reset(script.displayDuration || 4.0);
+	if (seconds > 0) {
+		var hideDelay = script.createEvent("DelayedCallbackEvent");
+		hideDelay.bind(function () {
+			if (token === showToken) {
+				startFadeOut();
+			}
+		});
+		hideDelay.reset(seconds);
+	}
+}
+
+function getDefaultMessage() {
+	return script.hintMessage || "Look at the yellow tile below";
 }
 
 /**
@@ -84,6 +110,7 @@ function startFadeOut() {
  * Hide the hint immediately
  */
 function hide() {
+	showToken++;
 	isShowing = false;
 	isFading = false;
 
@@ -91,8 +118,9 @@ function hide() {
 		script.hintContainer.enabled = false;
 	}
 
-	// Reset alpha for next show
+	// Reset alpha and message for next show, so mode text never leaks into Classic
 	setTextAlpha(1.0);
+	setMessage(getDefaultMessage());
 }
 
 /**
@@ -155,6 +183,7 @@ script.createEvent("UpdateEvent").bind(function (eventData) {
 
 // Script API
 script.show = show;
+script.showFor = showFor;
 script.hide = hide;
 script.setMessage = setMessage;
 script.isShowing = isHintShowing;
@@ -163,6 +192,7 @@ script.isShowing = isHintShowing;
 global.PathFinder = global.PathFinder || {};
 global.PathFinder.LookDownHint = {
 	show: show,
+	showFor: showFor,
 	hide: hide,
 	setMessage: setMessage,
 	isShowing: isHintShowing,
