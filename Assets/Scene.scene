@@ -15,6 +15,7 @@
     - !<own> 67feef38-14cf-4ab1-8188-8f41806bc59a
     - !<own> 395ce94e-cdbb-4985-a151-91f3da4d54d8
     - !<own> f3638ed4-844d-4e2f-b006-81a17cc99747
+    - !<own> 69c1c908-2d56-467c-bab3-a0eca14e450d
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       - |
@@ -958,6 +959,46 @@
     - !<own> dc057694-04b7-4fd1-baaa-44b40d272fc9
   Components:
     []
+- !<ScriptComponent/28b8aa28-a59c-43b7-b237-d911920d87c8>
+  PrefabRemaps:
+    []
+  Name: RectangleButton
+  Enabled: true
+  ScriptAsset: !<reference> 173d7099-914c-4f24-ac1c-1b67a66ae138
+  ScriptInputsDefault:
+    _renderOrder: true
+    _inactive: true
+    _style: true
+    _toggleable: true
+    _defaultToOn: true
+    addCallbacks: true
+    triggerUpCallbacks: true
+    triggerDownCallbacks: true
+    onValueChangeCallbacks: true
+    onFinishedCallbacks: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      _renderOrder: 0
+      _size: !<Vec3> {x: 11.000000, y: 3.000000, z: 1.000000}
+      _inactive: false
+      _playAudio: true
+      _style: PrimaryNeutral
+      _toggleable: false
+      _defaultToOn: false
+      addCallbacks: false
+      triggerUpCallbacks:
+        []
+      triggerDownCallbacks:
+        []
+      onValueChangeCallbacks:
+        []
+      onFinishedCallbacks:
+        []
+  ScriptTypes:
+    "":
+      {}
 - !<ScriptComponent/28cf3766-599c-4bd5-8505-2a92bf6606ed>
   PrefabRemaps:
     []
@@ -992,6 +1033,87 @@
   ScriptTypes:
     "":
       {}
+- !<Text/28dc3eab-5f34-4f17-8999-012d840ecb69>
+  PrefabRemaps:
+    []
+  Name: Text
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Text: FLOOR IS LAVA
+  Editable: false
+  ShowEditingPreview: true
+  TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
+  SizeToFit: false
+  FontSize: 48
+  Font: !<reference> b2527a8d-2376-43df-9a2b-e579855ce63a
+  LayoutRect:
+    left: -7.500000
+    bottom: -2.250000
+    right: 7.500000
+    top: 2.250000
+  OverflowVertical: Overflow
+  OverflowHorizontal: Overflow
+  Fill: !<TextFill>
+    Mode: Solid
+    Color: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    Texture: !<reference> 00000000-0000-0000-0000-000000000000
+    ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+    TileCount: 5.000000
+    TileZone: Rect
+    TextureStretch: FitWidth
+  BlendMode: PremultipliedAlpha
+  Outline: !<OutlineSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    Size: 0.250000
+  Dropshadow: !<DropshadowSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    OffsetX: 0.250000
+    OffsetY: 0.250000
+  Background: !<BackgroundSettings>
+    Enabled: false
+    Fill: !<TextFill>
+      Mode: Solid
+      Color: {x: 0.000000, y: 0.000000, z: 0.000000, w: 1.000000}
+      Texture: !<reference> 00000000-0000-0000-0000-000000000000
+      ColorTint: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+      TileCount: 5.000000
+      TileZone: Rect
+      TextureStretch: FitWidth
+    Margins:
+      left: 0.000000
+      bottom: 0.000000
+      right: 0.000000
+      top: 0.000000
+    CornerRadius: 0.000000
+  AdvancedLayout: !<TextAdvancedLayout>
+    ExtentsTarget: !<reference> 00000000-0000-0000-0000-000000000000
+    LetterSpacing: 0.000000
+    LineSpacing: 1.000000
+    CapitalizationOverride: None
+  DepthTest: false
+  TwoSided: false
 - !<SceneObject/298f274e-575f-40f7-a4f3-e4eaeaaecd67>
   PrefabRemaps:
     []
@@ -1735,6 +1857,23 @@
     []
   Components:
     - !<own> e9e275a2-195d-47ba-bc78-6ccc98b62688
+- !<AudioComponent/3cf95cdd-f6f2-49ac-861a-a2b63f6e8677>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> 00000000-0000-0000-0000-000000000000
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
 - !<SceneObject/3d7828ee-2891-4454-9f06-7d3aa618c06b>
   PrefabRemaps:
     []
@@ -2307,6 +2446,21 @@
     []
   Components:
     - !<own> 6f3742fb-c072-4b1c-a2db-8871815a5937
+- !<SceneObject/58f7777d-6325-4793-95e0-20dbee91e605>
+  PrefabRemaps:
+    []
+  Name: Object 0
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 28dc3eab-5f34-4f17-8999-012d840ecb69
 - !<Text/5a1c5429-d4d6-48b5-9da1-684f85140d70>
   PrefabRemaps:
     []
@@ -2900,6 +3054,22 @@
     - !<own> 02e78e61-f123-45ca-a1cb-77c474e6e06d
   Components:
     - !<own> 45656877-a5a5-48ca-9bfc-3a97f7d0ce22
+- !<SceneObject/69c1c908-2d56-467c-bab3-a0eca14e450d>
+  PrefabRemaps:
+    []
+  Name: LavaController
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> cd07bcf2-b7ee-417f-91ba-a6e370eea1da
+    - !<own> 3cf95cdd-f6f2-49ac-861a-a2b63f6e8677
 - !<ScriptComponent/6babf406-e703-425f-b121-f46c8c10d2a1>
   PrefabRemaps:
     []
@@ -3039,7 +3209,6 @@
   Enabled: true
   ScriptAsset: !<reference> bca084fc-ac10-420c-9bcd-28f6d51fb35c
   ScriptInputsDefault:
-    lavaButton: true
     gameVersion: true
     floorPlacementParent: true
     floorPlacementObject: true
@@ -3053,7 +3222,7 @@
       startButton: !<reference.SceneObject> 5be47e64-cb6a-4b7e-9c49-7ca919f4dcf5
       minefieldButton: !<reference.SceneObject> bad555bd-6bc2-4236-b978-69572d5722f2
       tonePadsButton: !<reference.SceneObject> 99b0208c-4c1c-400f-a68b-51e1dcee09ff
-      lavaButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      lavaButton: !<reference.SceneObject> e43c4649-2629-406b-850b-efe4efab4e46
       achievementsButton: !<reference.SceneObject> f132c560-0235-4c1e-b031-2b63a54a79a9
       resetProgressButton: !<reference.SceneObject> 7b3e2dc6-4f97-4caf-a55e-9f2105eb2d19
       resetAllButton: !<reference.SceneObject> 63e143d0-34f1-48e7-b4e4-6500058ec0cc
@@ -3224,7 +3393,7 @@
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: -17.500000, z: 0.010000}
+    Position: {x: 0.000000, y: -21.500000, z: 0.010000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
@@ -4188,6 +4357,7 @@
     - !<own> e86611cb-715d-400e-a873-373018665403
     - !<own> bad555bd-6bc2-4236-b978-69572d5722f2
     - !<own> 99b0208c-4c1c-400f-a68b-51e1dcee09ff
+    - !<own> e43c4649-2629-406b-850b-efe4efab4e46
   Components:
     - !<own> cf67656b-c28d-4784-9c53-6671e04aeeed
     - !<own> 731bf71a-5e82-40a9-ae99-c7fb48b906b0
@@ -4987,6 +5157,27 @@
     - !<own> 124ebfc0-9240-4eaf-af6e-ce6ef49c1d7d
   Components:
     []
+- !<ScriptComponent/cd07bcf2-b7ee-417f-91ba-a6e370eea1da>
+  PrefabRemaps:
+    []
+  Name: LavaController
+  Enabled: true
+  ScriptAsset: !<reference> b806bb15-9586-479c-97ce-3cf60091c638
+  ScriptInputsDefault:
+    {}
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      boxMesh: !<reference.RenderMesh> e542623c-1432-4bfa-881d-a28905bd9e57
+      boxMaterial: !<reference.Material> c87b13d2-8f5b-436f-8435-c4c1d2d1da34
+      sfxPlayer: !<reference.AudioComponent> 3cf95cdd-f6f2-49ac-861a-a2b63f6e8677
+      landTrack: !<reference.AudioTrackAsset> 6769ef20-1ac2-4f1d-8fcc-345457cb2a0d
+      goTrack: !<reference.AudioTrackAsset> 708d558f-94af-41ea-a7ed-c92664e8a48e
+  ScriptTypes:
+    "":
+      {}
 - !<ScriptComponent/cf67656b-c28d-4784-9c53-6671e04aeeed>
   PrefabRemaps:
     []
@@ -5417,6 +5608,21 @@
     - !<own> 5a2ca1a2-f292-4079-aebb-f491bb9f5bf5
   Components:
     []
+- !<SceneObject/e43c4649-2629-406b-850b-efe4efab4e46>
+  PrefabRemaps:
+    []
+  Name: LavaButton
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: -12.000000, z: 0.010000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 58f7777d-6325-4793-95e0-20dbee91e605
+  Components:
+    - !<own> 28b8aa28-a59c-43b7-b237-d911920d87c8
 - !<DeviceTracking/e5553c8a-0b7e-4ef4-92d9-3e1318fb82c1>
   PrefabRemaps:
     []
@@ -5724,7 +5930,7 @@
   Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: -12.000000, z: 0.010000}
+    Position: {x: 0.000000, y: -16.000000, z: 0.010000}
     Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
     Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
     HasSegmentScaleCompensation: false
