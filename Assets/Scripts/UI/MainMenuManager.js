@@ -9,6 +9,8 @@ var Constants = require("../Utils/Constants");
 // @input SceneObject achievementsContainer {"label": "Achievements Container", "hint": "Achievements content container"}
 // @input SceneObject startButton {"label": "Start Button", "hint": "Button to start the game"}
 // @input SceneObject minefieldButton {"label": "Minefield Button", "hint": "Optional. Starts the Minefield mode"}
+// @input SceneObject tonePadsButton {"label": "Tone Pads Button", "hint": "Optional. Starts the Tone Pads mode"}
+// @input SceneObject lavaButton {"label": "Floor Is Lava Button", "hint": "Optional. Starts the Floor Is Lava mode"}
 // @input SceneObject achievementsButton {"label": "Achievements Button", "hint": "Button to view achievements"}
 // @input SceneObject resetProgressButton {"label": "Reset Progress Button", "hint": "Button to clear saved progress"}
 // @input SceneObject resetAllButton {"label": "Reset All Button (Debug)", "hint": "Debug-only button that calls Save.resetAll()"}
@@ -422,6 +424,18 @@ function initialize() {
 	if (script.minefieldButton) {
 		setupButton(script.minefieldButton, function () {
 			startMode("minefield");
+		});
+	}
+
+	if (script.tonePadsButton) {
+		setupButton(script.tonePadsButton, function () {
+			startMode("tonepads");
+		});
+	}
+
+	if (script.lavaButton) {
+		setupButton(script.lavaButton, function () {
+			startMode("lava");
 		});
 	}
 
