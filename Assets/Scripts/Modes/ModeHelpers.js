@@ -112,11 +112,61 @@ function playTrack(audioComponent, track) {
 }
 
 /**
+ * Stops a mode's own AudioComponent (it lives in the scene, so exiting doesn't destroy it)
+ */
+function stopTrack(audioComponent) {
+	if (audioComponent && audioComponent.isPlaying()) {
+		audioComponent.stop(false);
+	}
+}
+
+/**
  * Head position in grid-local centimeters (+Z toward the player at placement, y = height above the floor)
  */
 function headLocal(gridManager, cameraObject) {
 	if (!gridManager || !cameraObject) return null;
 	return gridManager.worldToGridLocal(cameraObject.getTransform().getWorldPosition());
+}
+
+// Looking down moves the Spectacles forward of the body, which can put the head over the next tile while
+// the feet are still on this one. bodyLocal pulls the head back along the view direction: a little when
+// upright, more the further the player looks down. Starting values; tune them on device
+var BODY_BACK_UPRIGHT = 5;
+var BODY_BACK_LOOKING_DOWN = 12; // Kept modest: overshooting puts the estimate behind the feet
+
+/**
+ * Flattened view direction in grid-local space, plus how far the player looks down
+ * (0 = level, 1 = straight down). The camera looks along its -forward
+ * @returns {Object} {x, z, down} or null
+ */
+function viewLocal(gridManager, cameraObject) {
+	if (!gridManager || !cameraObject) return null;
+	var transform = cameraObject.getTransform();
+	var position = transform.getWorldPosition();
+	var from = gridManager.worldToGridLocal(position);
+	var to = gridManager.worldToGridLocal(position.add(transform.forward.uniformScale(-100)));
+	if (!from || !to) return null;
+
+	var dx = to.x - from.x;
+	var dy = to.y - from.y;
+	var dz = to.z - from.z;
+	var flat = Math.sqrt(dx * dx + dz * dz);
+	if (flat < 1e-3) return null;
+	return { x: dx / flat, z: dz / flat, down: Math.max(0, Math.min(1, -dy / 100)) };
+}
+
+/**
+ * Estimated body position in grid-local cm: the head pulled back along the view direction
+ * (see BODY_BACK_*). y stays the head's height above the floor
+ */
+function bodyLocal(gridManager, cameraObject) {
+	var head = headLocal(gridManager, cameraObject);
+	if (!head) return null;
+	var view = viewLocal(gridManager, cameraObject);
+	if (!view) return head;
+
+	var back = BODY_BACK_UPRIGHT + BODY_BACK_LOOKING_DOWN * view.down;
+	return new vec3(head.x - view.x * back, head.y, head.z - view.z * back);
 }
 
 /**
@@ -188,7 +238,10 @@ module.exports = {
 	playSfx: playSfx,
 	playStep: playStep,
 	playTrack: playTrack,
+	stopTrack: stopTrack,
 	headLocal: headLocal,
+	viewLocal: viewLocal,
+	bodyLocal: bodyLocal,
 	tileLocal: tileLocal,
 	horizontalDistance: horizontalDistance,
 	createBox: createBox,

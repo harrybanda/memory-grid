@@ -57,6 +57,9 @@ function resetTrigger() {
  * @param {CollisionEnterEventArgs} eventArgs - Collision event data
  */
 function onOverlapEnter(eventArgs) {
+	// Triggers GridManager never set up aren't grid tiles (e.g. the start marker's trigger in Surface.prefab)
+	if (!onTriggerCallback) return;
+
 	// Only accept overlaps from the actual camera collider.
 	// This prevents child UI/interactable colliders from triggering tiles early.
 	if (!isCameraColliderOverlap(eventArgs)) {

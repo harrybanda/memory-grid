@@ -7,10 +7,11 @@
 //   one step forward or sideways, or the game says FREEZE) -> LAND (flames rise; judged over a short
 //   grace window) -> COOL -> next wave. Clear all waves to clear the level; three levels, then it loops.
 //
-// Where the player stands is tracked from head position every frame (the tile triggers only report
-// first entries). A tile becomes "confirmed" only after the head holds within CONFIRM_RADIUS of its
-// centre for CONFIRM_DWELL, so leans and head bob don't move it. At landing the player is safe if either
-// the confirmed tile or the tile nearest the head is safe in any frame of the grace window.
+// Where the player stands is tracked every frame from a body estimate: the head position pulled back when
+// looking down (ModeHelpers.bodyLocal), since the tile triggers only report first entries and looking at
+// the next tile moves the head over it. A tile becomes "confirmed" only after the body holds within
+// CONFIRM_RADIUS of its centre for CONFIRM_DWELL, so leans and head bob don't move it. At landing the
+// player is safe if either the confirmed tile or the nearest tile is safe in any frame of the grace window.
 
 // @input SceneObject cameraObject {"label": "Camera", "hint": "The Camera Object with Device Tracking, for head position"}
 // @input Asset.RenderMesh boxMesh {"label": "Box Mesh", "hint": "A unit box mesh, used for the flames and the safe-tile beam"}
@@ -47,10 +48,10 @@ var LEVELS = [
 var Config = {
 	LIVES: 3, // Every wave is judged from head position, so a couple of spare lives absorb misreads
 
-	CONFIRM_RADIUS: 15, // cm from a tile centre before that tile can become the confirmed tile
+	CONFIRM_RADIUS: 21, // cm from a tile centre before that tile can become the confirmed tile (< half the 55cm pitch)
 	CONFIRM_DWELL: 0.3, // seconds the head must hold there
-	SETTLE_RADIUS: 18, // a wave only starts when the head is this close to the confirmed tile's centre
-	SETTLE_HINT_AFTER: 1.5, // seconds unsettled before "STAND IN THE MIDDLE OF A TILE"
+	SETTLE_RADIUS: 26, // a wave only starts once the body holds this close to a tile's centre for CONFIRM_DWELL
+	SETTLE_HINT_AFTER: 1.5, // seconds unsettled before "STEP TO THE MIDDLE OF THE LIT TILE"
 	OFF_BOARD_MARGIN: 20, // head this far past the board's edge counts as off the board
 	TILE_HALF: 25,
 
@@ -63,7 +64,7 @@ var Config = {
 	TICK_END: 0.18,
 
 	FLAME_SIZE: new vec3(45, 140, 45),
-	BEAM_SIZE: new vec3(8, 200, 8),
+	BEAM_SIZE: new vec3(8, 100, 8), // Kept below eye level: the player stands in it once they reach the tile
 };
 
 var COLORS = {
@@ -106,7 +107,11 @@ var confirmed = null; // {x, z} or null
 var candidate = null;
 var candidateTime = 0;
 var nearest = null; // {x, z} or null when off the board
-var headNow = null;
+var bodyNow = null;
+var nearestHead = null; // tile nearest the raw head; the landing check accepts either estimate
+var settleTile = null;
+var settleTime = 0;
+var settleShown = null; // tile lit faintly while waiting to settle, so the player sees which tile counts
 
 // Current wave
 var burning = {}; // "x,z" -> true
@@ -177,7 +182,8 @@ function startCountdown() {
 	clock.later(steps.length, function () {
 		setHud("GO!", 1.0);
 		Helpers.playTrack(script.sfxPlayer, script.goTrack);
-		startLevel();
+		// Let GO! be read before the first wave's MOVE!/FREEZE! (update ignores COUNTDOWN)
+		clock.later(1.0, startLevel);
 	});
 }
 
@@ -198,6 +204,9 @@ function enterSettle() {
 	setPhase(Phase.SETTLE);
 	clearBoard();
 	hideBeam();
+	settleShown = null;
+	settleTile = null;
+	settleTime = 0;
 }
 
 function startWave() {
@@ -285,6 +294,7 @@ function clearLevel() {
 
 function loseLevel() {
 	setPhase(Phase.RESULT);
+	hideBeam();
 	forEachTile(function (x, z) {
 		paintTile(x, z, COLORS.LAVA);
 	});
@@ -303,27 +313,36 @@ function loseLevel() {
 function update() {
 	if (!clock.isActive() || !GridManager) return;
 
-	headNow = Helpers.headLocal(GridManager, script.cameraObject);
-	if (!headNow) return;
+	bodyNow = Helpers.bodyLocal(GridManager, script.cameraObject);
+	if (!bodyNow) return;
 
 	var dt = getDeltaTime();
 	phaseTime += dt;
-	updateOccupancy(headNow, dt);
+	updateOccupancy(bodyNow, dt);
+	var head = Helpers.headLocal(GridManager, script.cameraObject);
+	nearestHead = head ? nearestTile(head) : null;
 
 	if (phase === Phase.WAIT_START) {
 		if (confirmed && confirmed.x === CENTRE.x && confirmed.z === CENTRE.z) {
 			startCountdown();
 		}
 	} else if (phase === Phase.SETTLE) {
-		if (isSettled()) {
+		showSettleTile();
+		if (updateSettle(dt)) {
+			// Plan from the tile the player is actually holding
+			confirmed = { x: settleTile.x, z: settleTile.z };
 			startWave();
 		} else if (!nearest) {
 			setHud("BACK ON THE BOARD", 0);
 		} else if (phaseTime >= Config.SETTLE_HINT_AFTER) {
-			setHud("STAND IN THE MIDDLE OF A TILE", 0);
+			setHud("STEP TO THE MIDDLE OF THE LIT TILE", 0);
 		}
 	} else if (phase === Phase.WARN) {
 		updateWarning(dt);
+		if (waveType !== Wave.FREEZE && nearest && nearest.x === safeTarget.x && nearest.z === safeTarget.z) {
+			// Arrived: the tile stays cyan, the beam would only get in the way
+			hideBeam();
+		}
 		if (phaseTime >= LEVELS[levelIndex].warn) {
 			land();
 		}
@@ -367,17 +386,47 @@ function updateOccupancy(head, dt) {
 	}
 }
 
-function isSettled() {
-	return !!confirmed && !!nearest && Helpers.horizontalDistance(headNow, centres[confirmed.z][confirmed.x]) <= Config.SETTLE_RADIUS;
+/**
+ * Settled once the body has held near one tile's centre for CONFIRM_DWELL, so a wave is never planned
+ * from a tile the player is only walking through
+ * @returns {boolean} True when settled on settleTile
+ */
+function updateSettle(dt) {
+	var near = !!nearest && Helpers.horizontalDistance(bodyNow, centres[nearest.z][nearest.x]) <= Config.SETTLE_RADIUS;
+	if (!near) {
+		settleTile = null;
+		settleTime = 0;
+		return false;
+	}
+	if (!settleTile || settleTile.x !== nearest.x || settleTile.z !== nearest.z) {
+		settleTile = { x: nearest.x, z: nearest.z };
+		settleTime = 0;
+	}
+	settleTime += dt;
+	return settleTime >= Config.CONFIRM_DWELL;
 }
 
 /**
- * Lenient landing check: safe if either the confirmed tile or the nearest tile is not burning
+ * While waiting to settle, lights the tile the player is over faintly so they can see which tile counts
+ */
+function showSettleTile() {
+	var same = settleShown && nearest && settleShown.x === nearest.x && settleShown.z === nearest.z;
+	if (same || (!settleShown && !nearest)) return;
+	if (settleShown) paintTile(settleShown.x, settleShown.z, COLORS.DEFAULT);
+	settleShown = nearest ? { x: nearest.x, z: nearest.z } : null;
+	if (settleShown) paintTile(settleShown.x, settleShown.z, Helpers.withAlpha(COLORS.SAFE, 0.35));
+}
+
+/**
+ * Lenient landing check: safe if either the confirmed tile or the nearest tile is not burning.
+ * FREEZE waves use the nearest tile only: the confirmed tile is the safe one, so it can't excuse stepping off it
  */
 function isSafeNow() {
-	var confirmedSafe = confirmed && !burning[key(confirmed.x, confirmed.z)];
-	var nearestSafe = nearest && !burning[key(nearest.x, nearest.z)];
-	return !!(confirmedSafe || nearestSafe);
+	// The body estimate can over- or under-correct for looking down, so either it or the raw head counts
+	var nearestSafe = (!!nearest && !burning[key(nearest.x, nearest.z)]) || (!!nearestHead && !burning[key(nearestHead.x, nearestHead.z)]);
+	if (waveType === Wave.FREEZE) return nearestSafe;
+	var confirmedSafe = !!confirmed && !burning[key(confirmed.x, confirmed.z)];
+	return confirmedSafe || nearestSafe;
 }
 
 /**
@@ -432,7 +481,7 @@ function planWave(type) {
  * centre so the player isn't pushed to the edge
  */
 function pickTarget(standing) {
-	var heading = headingLocal();
+	var heading = Helpers.viewLocal(GridManager, script.cameraObject);
 	var options = [];
 	var directions = [
 		{ x: 1, z: 0 },
@@ -480,25 +529,6 @@ function burnSet(type, standing, target) {
 		if (burns) result[key(x, z)] = true;
 	});
 	return result;
-}
-
-/**
- * Flattened view direction in grid-local space. The camera looks along its -forward
- */
-function headingLocal() {
-	if (!script.cameraObject) return null;
-	var transform = script.cameraObject.getTransform();
-	var position = transform.getWorldPosition();
-	var ahead = position.add(transform.forward.uniformScale(-100));
-	var from = GridManager.worldToGridLocal(position);
-	var to = GridManager.worldToGridLocal(ahead);
-	if (!from || !to) return null;
-
-	var dx = to.x - from.x;
-	var dz = to.z - from.z;
-	var length = Math.sqrt(dx * dx + dz * dz);
-	if (length < 1e-3) return null;
-	return { x: dx / length, z: dz / length };
 }
 
 // ============================================
@@ -627,6 +657,7 @@ function endSession() {
 	clock.stop();
 	setPhase(Phase.IDLE);
 	Helpers.hideHud();
+	Helpers.stopTrack(script.sfxPlayer);
 	hideFlames();
 	hideBeam();
 }

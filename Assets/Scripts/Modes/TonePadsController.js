@@ -7,8 +7,10 @@
 // floating "remote" at eye level, since the pads at your feet are mostly below the display) -> INPUT
 // (step the pads in order) -> RESULT (tune done, level clear, or wrong pad) -> WAIT_ON_START.
 //
-// Input is polled from head position rather than the tile triggers: pads are at least 78cm apart,
-// so a generous 25cm radius can't reach a second pad, and a player already standing on yellow counts.
+// Input is polled from a body estimate (the head pulled back when looking down, ModeHelpers.bodyLocal)
+// rather than the tile triggers: pads are at least 78cm apart, so a generous 25cm radius can't reach a
+// second pad. The tune only plays once the player is on yellow and facing the remote, and that yellow
+// step counts as the first note.
 
 // @input SceneObject cameraObject {"label": "Camera", "hint": "The Camera Object with Device Tracking, for head position"}
 // @input Asset.RenderMesh boxMesh {"label": "Box Mesh", "hint": "A unit box mesh, used to build the floating remote"}
@@ -45,11 +47,14 @@ var LEVELS = [
 ];
 
 var Config = {
-	PAD_RADIUS: 25, // Head within this distance of a pad centre enters it (cm)
-	PAD_RELEASE: 32, // Head must go beyond this distance before the same pad can register again
-	START_DWELL: 0.5, // Seconds on the yellow pad before the tune plays
+	PAD_RADIUS: 25, // Body within this distance of a pad centre enters it (cm)
+	PAD_RELEASE: 32, // Body must go beyond this distance before the same pad can register again
+	START_RADIUS: 35, // Standing anywhere on the yellow tile counts for the start (the nearest other pad is ~78cm away)
+	START_DWELL: 0.5, // Seconds on the yellow pad, facing the remote, before the tune plays
+	FACING_DEGREES: 35, // How far the view can be off the remote and still count as facing it
+	MAX_LOOK_DOWN: 0.6, // Looking further down than this (about 37 degrees) can't see the eye-level remote
 	IDLE_REPLAY: 10, // Seconds without progress before the tune replays
-	CHIME_DELAY: 0.4, // Keeps the success chime from cutting off the last note (one shared SFX channel)
+	CHIME_DELAY: 0.8, // Step notes swell to their peak at ~0.4s; wait before the chime replaces them (one shared SFX channel)
 	PAD_IDLE_ALPHA: 0.45,
 	PAD_LIT_ALPHA: 1.0,
 	OFF_TILE_ALPHA: 0.08,
@@ -88,6 +93,7 @@ var inputIndex = 0;
 var lastAcceptedPad = -1;
 var padInside = [false, false, false, false];
 var startDwell = 0;
+var waitHint; // last hint shown while waiting on yellow (undefined forces the first one)
 var idleTime = 0;
 
 // Remote: a root object with one light per pad, built once and reused
@@ -117,6 +123,7 @@ function onGridPlaced(gridOrigin, floorY) {
 	paintBoard();
 
 	levelIndex = 0;
+	best = 0;
 	isFirstTune = true;
 	startLevel();
 }
@@ -135,9 +142,28 @@ function startLevel() {
 function enterWaitOnStart() {
 	setPhase(Phase.WAIT_ON_START);
 	startDwell = 0;
+	waitHint = null;
 	paintBoard();
 	setPadLit(S, true);
-	Helpers.showHud("LEVEL " + (levelIndex + 1) + " · " + tune.length + " NOTES\nSTAND ON YELLOW", 0);
+	showWaitHint("");
+}
+
+/**
+ * Shows why the tune hasn't started yet: not on yellow, not facing the remote, or looking down
+ * @param {string} problem - "" (not on yellow), "turn", "look up", or null (ready)
+ */
+function showWaitHint(problem) {
+	if (problem === waitHint) return;
+	waitHint = problem;
+	if (problem === "turn") {
+		Helpers.showHud("TURN TO FACE THE LIGHTS", 0);
+	} else if (problem === "look up") {
+		Helpers.showHud("LOOK UP AT THE LIGHTS", 0);
+	} else if (problem === null) {
+		Helpers.showHud("GET READY...", 0);
+	} else {
+		Helpers.showHud("LEVEL " + (levelIndex + 1) + " · " + tune.length + " NOTES\nSTAND ON YELLOW, FACE THE LIGHTS", 0);
+	}
 }
 
 function startPlayback() {
@@ -167,19 +193,20 @@ function schedulePlaybackNote(pad, at, duration) {
 
 function startInput() {
 	setPhase(Phase.INPUT);
-	inputIndex = 0;
-	lastAcceptedPad = -1;
 	idleTime = 0;
-	Helpers.showHud("YOUR TURN", 0);
 
-	// Seed pad states from where the head is now, so standing on yellow counts as the first note
-	var head = Helpers.headLocal(GridManager, script.cameraObject);
+	// The tune only played after the player stood on yellow, and every tune starts on yellow, so that note
+	// is already played. It's counted silently: a note on the beat would sound like part of the tune.
+	// Pads are seeded from where the player is now, so a pad they drifted onto during playback needs a fresh
+	// step rather than failing at once; the second note is left clear so stepping onto it early still counts
+	var body = Helpers.bodyLocal(GridManager, script.cameraObject);
 	for (var p = 0; p < PADS.length; p++) {
-		padInside[p] = !!head && Helpers.horizontalDistance(head, padCentres[p]) <= Config.PAD_RADIUS;
+		padInside[p] = !!body && Helpers.horizontalDistance(body, padCentres[p]) <= Config.PAD_RELEASE;
 	}
-	if (padInside[tune[0]]) {
-		acceptPad(tune[0]);
-	}
+	padInside[tune[1]] = false;
+	inputIndex = 1;
+	lastAcceptedPad = tune[0];
+	Helpers.showHud("YOUR TURN · 1/" + tune.length, 0);
 }
 
 function onPadEntered(pad) {
@@ -256,13 +283,16 @@ function wrongPad(pad) {
 function update() {
 	if (!clock.isActive() || !GridManager) return;
 
-	var head = Helpers.headLocal(GridManager, script.cameraObject);
-	if (!head) return;
+	var body = Helpers.bodyLocal(GridManager, script.cameraObject);
+	if (!body) return;
 
 	var dt = getDeltaTime();
 
 	if (phase === Phase.WAIT_ON_START) {
-		if (Helpers.horizontalDistance(head, padCentres[S]) <= Config.PAD_RADIUS) {
+		var onYellow = Helpers.horizontalDistance(body, padCentres[S]) <= Config.START_RADIUS;
+		var problem = onYellow ? facingProblem(body) : "";
+		showWaitHint(problem);
+		if (onYellow && problem === null) {
 			startDwell += dt;
 			if (startDwell >= Config.START_DWELL) {
 				startPlayback();
@@ -271,7 +301,7 @@ function update() {
 			startDwell = 0;
 		}
 	} else if (phase === Phase.INPUT) {
-		updatePads(head);
+		updatePads(body);
 
 		idleTime += dt;
 		if (phase === Phase.INPUT && idleTime >= Config.IDLE_REPLAY) {
@@ -283,12 +313,31 @@ function update() {
 }
 
 /**
- * Edge-triggered pad entry: a pad registers when the head comes within PAD_RADIUS,
- * and re-arms once the head is beyond PAD_RELEASE
+ * Why the player can't see the remote yet: "turn" (facing away), "look up" (looking at the floor), or null.
+ * The tune never plays behind the player or while they're looking at their feet
  */
-function updatePads(head) {
+function facingProblem(body) {
+	var view = Helpers.viewLocal(GridManager, script.cameraObject);
+	if (!view) return null;
+	var dx = Config.REMOTE_POSITION.x - body.x;
+	var dz = Config.REMOTE_POSITION.z - body.z;
+	var length = Math.sqrt(dx * dx + dz * dz);
+	if (length >= 1 && (view.x * dx + view.z * dz) / length < Math.cos((Config.FACING_DEGREES * Math.PI) / 180)) {
+		return "turn";
+	}
+	if (view.down > Config.MAX_LOOK_DOWN) {
+		return "look up";
+	}
+	return null;
+}
+
+/**
+ * Edge-triggered pad entry: a pad registers when the body comes within PAD_RADIUS,
+ * and re-arms once the body is beyond PAD_RELEASE
+ */
+function updatePads(body) {
 	for (var p = 0; p < PADS.length; p++) {
-		var distance = Helpers.horizontalDistance(head, padCentres[p]);
+		var distance = Helpers.horizontalDistance(body, padCentres[p]);
 		if (!padInside[p] && distance <= Config.PAD_RADIUS) {
 			padInside[p] = true;
 			onPadEntered(p);

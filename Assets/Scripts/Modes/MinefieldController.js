@@ -13,6 +13,7 @@
 
 var Constants = require("../Utils/Constants");
 var MinefieldLayouts = require("./MinefieldLayouts");
+var Helpers = require("./ModeHelpers");
 
 // Board: 4 columns x 5 rows. Row 4 (nearest the player) is the start row, row 0 is the far row
 var ROWS = 5;
@@ -34,8 +35,9 @@ var Config = {
 	MARKER_LOCAL_X: 27.5,
 	GATE_RADIUS: 35, // Head within this distance of the marker centre counts as standing on it
 	GATE_ARM_DISTANCE: 50, // The gate arms only once the head has been this far from the marker
+	GATE_ARM_AFTER_HINT: 40, // After the "step off" hint, just stepping off the glow arms it
 	GATE_DWELL: 0.5,
-	MIN_HEAD_HEIGHT: 100, // Head must be at least this high above the floor (not a carried headset)
+	MIN_HEAD_HEIGHT: 100, // Head must be this high above the floor (not a carried headset); lowered at placement if needed
 
 	STUDY_LINE_Z: 40, // Study ends when the head crosses onto the yellow row (row centre z=25, edge z=50)
 	GOAL_RADIUS: 25,
@@ -46,6 +48,14 @@ var Config = {
 	OFF_BOARD_MARGIN: 20,
 	OFF_BOARD_DWELL: 0.4,
 	TILE_HALF: 25,
+
+	// Mines also count when the body estimate stays in a mine's cell, so nobody can slip past along the gaps
+	// the tile triggers don't reach. On a side that faces another mine the cell runs to the middle of the gap
+	// (MINE_CELL_SHARED), closing the seam between the two; on a side that faces a safe tile or the board edge
+	// it stops a little inside the tile (MINE_CELL_OPEN), so the diagonal squeeze past two mine corners stays open
+	MINE_CELL_SHARED: 27.5,
+	MINE_CELL_OPEN: 20,
+	MINE_CELL_DWELL: 0.2, // Seconds in the cell before it counts (filters a brief lean)
 };
 
 var COLORS = {
@@ -98,10 +108,17 @@ var boardBounds = null;
 var returningToStart = false;
 var offBoardTime = 0;
 
-// Gate and dwell timers
+// Gate and dwell timers. The gate arms once per placement (see updateGate)
 var gateArmed = false;
+var gateHintShown = false;
 var gateDwell = 0;
 var goalDwell = 0;
+var minHeadHeight = Config.MIN_HEAD_HEIGHT;
+
+// Mine cells: tile centres in grid-local cm, and how long the body has been in the current mine's cell
+var cellCentres = [];
+var mineCellKey = null;
+var mineCellTime = 0;
 
 /**
  * Called by PlacementBridge when this mode is selected and the floor is placed
@@ -126,6 +143,13 @@ function onGridPlaced(gridOrigin, floorY) {
 	GridManager.showGrid();
 	GridManager.onTriggerEntered(onTileEntered);
 
+	// Surface Placement's no-floor fallback puts the floor exactly 100cm below the head, so allow a margin
+	// below the height the board was placed from
+	var placeHead = Helpers.headLocal(GridManager, script.cameraObject);
+	minHeadHeight = placeHead ? Math.min(Config.MIN_HEAD_HEIGHT, placeHead.y - 30) : Config.MIN_HEAD_HEIGHT;
+
+	// Only the first round after placement needs arming, so whoever placed the board can't start it
+	gateArmed = false;
 	moveMarkerToColumnTwo();
 	enterZoneWait();
 }
@@ -139,8 +163,8 @@ function onGridPlaced(gridOrigin, floorY) {
  */
 function enterZoneWait() {
 	setPhase(Phase.ZONE_WAIT);
-	gateArmed = false;
 	gateDwell = 0;
+	gateHintShown = false;
 
 	layout = null;
 	mineKeys = {};
@@ -156,7 +180,7 @@ function startRound() {
 	roundId++;
 	if (StartZone) StartZone.hide();
 
-	var levelData = MinefieldLayouts.LEVELS[Math.min(level, MinefieldLayouts.LEVELS.length) - 1];
+	var levelData = MinefieldLayouts.LEVELS[currentLevelNumber() - 1];
 	layout = pickLayout(levelData);
 	studyCap = levelData.studyCap;
 
@@ -172,13 +196,22 @@ function startRound() {
 	goalDwell = 0;
 	returningToStart = false;
 	offBoardTime = 0;
+	mineCellKey = null;
+	mineCellTime = 0;
 	boardBounds = computeBoardBounds();
+	cellCentres = [];
+	for (var z = 0; z < ROWS; z++) {
+		cellCentres[z] = [];
+		for (var x = 0; x < COLUMNS; x++) {
+			cellCentres[z][x] = Helpers.tileLocal(GridManager, x, z);
+		}
+	}
 
 	clearBoard();
 	GridManager.resetTriggers();
 
 	setPhase(Phase.SWEEP);
-	showHud("REMEMBER THE RED.\nWALK TO THE BLUE.", 0);
+	showHud("LEVEL " + currentLevelNumber() + " / " + MinefieldLayouts.LEVELS.length + "\nREMEMBER THE RED", ROWS * Config.SWEEP_ROW_DELAY);
 
 	for (var row = 0; row < ROWS; row++) {
 		scheduleSweepRow(row, row * Config.SWEEP_ROW_DELAY);
@@ -202,7 +235,11 @@ function scheduleSweepRow(row, delay) {
  * Hides the mines and starts the walk
  */
 function endStudy() {
-	if (phase !== Phase.STUDY) return;
+	if (phase !== Phase.STUDY && phase !== Phase.SWEEP) return;
+	if (phase === Phase.SWEEP) {
+		// Stepping on during the sweep starts the walk early; cancel the rows still to light
+		roundId++;
+	}
 	setPhase(Phase.PLAY);
 
 	for (var k in mineKeys) {
@@ -210,7 +247,7 @@ function endStudy() {
 		paint(pos.x, pos.z, COLORS.DEFAULT);
 	}
 
-	showHud("GO!", 1.0);
+	showHud("GO!\nWALK TO THE BLUE", 1.5);
 	playTrack(script.goTrack);
 }
 
@@ -222,9 +259,9 @@ function endStudy() {
 function onTileEntered(x, z) {
 	if (!active) return;
 
-	// A tile entered during study (normally the yellow row) ends study and counts as the first
-	// footprint, so the once-per-round trigger latch can't swallow it
-	if (phase === Phase.STUDY) {
+	// A tile entered during the sweep or study (normally the yellow row) starts the walk and counts as the
+	// first footprint, so the once-per-round trigger latch can't swallow it
+	if (phase === Phase.SWEEP || phase === Phase.STUDY) {
 		endStudy();
 	}
 	if (phase !== Phase.PLAY) return;
@@ -248,6 +285,8 @@ function leaveFootprint(x, z) {
 }
 
 function hitMine(x, z, mine) {
+	// A mine can be reported twice: by its tile trigger and by the cell check
+	if (mine.hit) return;
 	mine.hit = true;
 	paint(x, z, COLORS.MINE);
 
@@ -305,10 +344,13 @@ function win() {
 	playSfx("playCompletion");
 
 	var stars = lives;
+	var total = MinefieldLayouts.LEVELS.length;
+	var clearedAll = level >= total;
+	var headline = clearedAll ? "ALL " + total + " LEVELS CLEARED!" : "SAFE!";
 	if (Config.LIVES === 1) {
-		showHud("SAFE!\nTURN AROUND", 0);
+		showHud(headline + "\nTURN AROUND", 0);
 	} else {
-		showHud("SAFE! " + stars + (stars === 1 ? " STAR" : " STARS") + "\nTURN AROUND", 0);
+		showHud(headline + " " + stars + (stars === 1 ? " STAR" : " STARS") + "\nTURN AROUND", 0);
 	}
 
 	var lines = stars === Config.LIVES ? SUCCESS_LINES_FULL_LIVES : SUCCESS_LINES;
@@ -316,7 +358,7 @@ function win() {
 		playVoice(randomItem(lines));
 	});
 
-	level++;
+	level = clearedAll ? 1 : level + 1;
 	later(Config.RESULT_HOLD, function () {
 		enterZoneWait();
 		playVoice("return_success");
@@ -349,23 +391,75 @@ function lose(reason) {
 function update() {
 	if (!active || !GridManager || !script.cameraObject) return;
 
-	var head = GridManager.worldToGridLocal(script.cameraObject.getTransform().getWorldPosition());
+	var head = Helpers.headLocal(GridManager, script.cameraObject);
 	if (!head) return;
+	// Where the player stands: the head pulled back when looking down, so peeking at a tile doesn't count as being on it
+	var body = Helpers.bodyLocal(GridManager, script.cameraObject) || head;
 
 	var dt = getDeltaTime();
 
 	if (phase === Phase.ZONE_WAIT) {
 		updateGate(head, dt);
+	} else if (phase === Phase.SWEEP) {
+		if (body.z < Config.STUDY_LINE_Z) {
+			endStudy();
+		}
 	} else if (phase === Phase.STUDY) {
-		if (head.z < Config.STUDY_LINE_Z || getTime() - studyStartTime >= studyCap) {
+		if (body.z < Config.STUDY_LINE_Z || getTime() - studyStartTime >= studyCap) {
 			endStudy();
 		}
 	} else if (phase === Phase.PLAY) {
-		updateOffBoard(head, dt);
+		updateOffBoard(body, dt);
+		if (phase === Phase.PLAY) {
+			updateMineCells(body, dt);
+		}
 		if (phase === Phase.PLAY && !returningToStart) {
-			updateGoal(head, dt);
+			updateGoal(body, dt);
 		}
 	}
+}
+
+/**
+ * A mine counts when the body stays in its cell for MINE_CELL_DWELL, even between tile triggers
+ */
+function updateMineCells(body, dt) {
+	var inCell = null;
+	for (var k in mineKeys) {
+		if (mineKeys[k].hit) continue;
+		var pos = parseKey(k);
+		if (isInMineCell(body, pos.x, pos.z)) {
+			inCell = k;
+			break;
+		}
+	}
+
+	if (inCell !== mineCellKey) {
+		mineCellKey = inCell;
+		mineCellTime = 0;
+	}
+	if (!inCell) return;
+
+	mineCellTime += dt;
+	if (mineCellTime >= Config.MINE_CELL_DWELL) {
+		var mine = parseKey(inCell);
+		hitMine(mine.x, mine.z, mineKeys[inCell]);
+	}
+}
+
+/**
+ * True when the body is inside mine (x, z)'s cell. Each side extends to the middle of the gap if the
+ * neighbour across it is also a mine, and stops at MINE_CELL_OPEN otherwise (see Config)
+ */
+function isInMineCell(body, x, z) {
+	var centre = cellCentres[z] && cellCentres[z][x];
+	if (!centre) return false;
+	var dx = body.x - centre.x;
+	var dz = body.z - centre.z;
+
+	// Neighbours in grid terms: +gridX is +local x; +gridZ is +local z (toward the player)
+	var reachX = mineKeys[key(x + (dx >= 0 ? 1 : -1), z)] ? Config.MINE_CELL_SHARED : Config.MINE_CELL_OPEN;
+	var reachZ = mineKeys[key(x, z + (dz >= 0 ? 1 : -1))] ? Config.MINE_CELL_SHARED : Config.MINE_CELL_OPEN;
+	return Math.abs(dx) <= reachX && Math.abs(dz) <= reachZ;
 }
 
 function updateOffBoard(head, dt) {
@@ -382,8 +476,10 @@ function updateOffBoard(head, dt) {
 		return;
 	}
 
+	// No test behind the start row: the marker stands there (so the study timer can start the walk with the
+	// player on it), and nothing behind the yellow row leads to the goal. The sides still catch walking around
 	var margin = Config.OFF_BOARD_MARGIN;
-	var outside = head.x < boardBounds.minX - margin || head.x > boardBounds.maxX + margin || head.z < boardBounds.minZ - margin || head.z > boardBounds.maxZ + margin;
+	var outside = head.x < boardBounds.minX - margin || head.x > boardBounds.maxX + margin || head.z < boardBounds.minZ - margin;
 
 	if (outside) {
 		offBoardTime += dt;
@@ -424,14 +520,22 @@ function updateGate(head, dt) {
 	var distance = horizontalDistance(head, marker);
 
 	if (!gateArmed) {
-		if (distance > Config.GATE_ARM_DISTANCE) {
+		if (distance > (gateHintShown ? Config.GATE_ARM_AFTER_HINT : Config.GATE_ARM_DISTANCE)) {
 			gateArmed = true;
 			debugLog("Gate armed");
+			if (gateHintShown) {
+				gateHintShown = false;
+				showHud("STAND ON THE GLOW", 0);
+			}
+		} else if (distance <= Config.GATE_RADIUS && !gateHintShown) {
+			// Whoever placed the board is often already on the glow; tell them how to start
+			gateHintShown = true;
+			showHud("STEP OFF THE GLOW,\nTHEN BACK ON", 0);
 		}
 		return;
 	}
 
-	if (distance <= Config.GATE_RADIUS && head.y >= Config.MIN_HEAD_HEIGHT) {
+	if (distance <= Config.GATE_RADIUS && head.y >= minHeadHeight) {
 		gateDwell += dt;
 		if (gateDwell >= Config.GATE_DWELL) {
 			startRound();
@@ -509,6 +613,10 @@ function paint(x, z, color) {
 	GridManager.setTileColorAt(x, z, color);
 }
 
+function currentLevelNumber() {
+	return Math.min(level, MinefieldLayouts.LEVELS.length);
+}
+
 /**
  * Cycles through the level's layouts and mirrors left-right half the time
  */
@@ -565,6 +673,7 @@ function endRound() {
 	roundId++;
 	active = false;
 	setPhase(Phase.IDLE);
+	Helpers.stopTrack(script.sfxPlayer);
 
 	if (global.PathFinder && global.PathFinder.LookDownHint) {
 		global.PathFinder.LookDownHint.hide();
