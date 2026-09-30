@@ -173,6 +173,63 @@ function bandRings(halfX, halfZ, steps) {
 }
 
 /**
+ * One side of a board border, on the floor: a band along X (the board edge at z = 0, outward is +z) whose ends
+ * are mitred at 45 degrees so four sides meet cleanly at the corners. UV: u runs along the edge (one unit per
+ * `period` cm, for a tiling stripe texture), v across the band. Cached per length
+ * @param {number} length - Edge length in cm (between the board's corners)
+ */
+function borderBand(length, period) {
+	var name = "borderBand" + Math.round(length) + "p" + period;
+	if (cache[name]) return cache[name];
+
+	var data = new MeshData();
+	var rows = [
+		{ d: 4, alpha: 0 },
+		{ d: 5.5, alpha: 1 },
+		{ d: 12.5, alpha: 1 },
+		{ d: 14, alpha: 0 },
+	];
+	for (var r = 0; r < rows.length; r++) {
+		var half = length / 2 + rows[r].d;
+		var v = (rows[r].d - rows[0].d) / (rows[rows.length - 1].d - rows[0].d);
+		data.vertex(-half, 0, rows[r].d, UP, -half / period, v, WHITE, rows[r].alpha);
+		data.vertex(half, 0, rows[r].d, UP, half / period, v, WHITE, rows[r].alpha);
+	}
+	for (var i = 0; i < rows.length - 1; i++) {
+		data.quad(i * 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+	}
+	cache[name] = data.build();
+	return cache[name];
+}
+
+/**
+ * One side of a board border, standing up: a glowing curtain along X at z = `offset`, unit height (scale Y
+ * sets the height in cm), bright at the floor and fading upward. Its ends reach the mitred corners
+ */
+function borderCurtain(length, offset) {
+	var name = "borderCurtain" + Math.round(length) + "o" + offset;
+	if (cache[name]) return cache[name];
+
+	var data = new MeshData();
+	var half = length / 2 + offset;
+	var rows = [
+		{ y: 0, alpha: 0.75 },
+		{ y: 0.06, alpha: 0.55 },
+		{ y: 0.45, alpha: 0.2 },
+		{ y: 1, alpha: 0 },
+	];
+	for (var r = 0; r < rows.length; r++) {
+		data.vertex(-half, rows[r].y, offset, FACING, 0, rows[r].y, WHITE, rows[r].alpha);
+		data.vertex(half, rows[r].y, offset, FACING, 1, rows[r].y, WHITE, rows[r].alpha);
+	}
+	for (var i = 0; i < rows.length - 1; i++) {
+		data.quad(i * 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+	}
+	cache[name] = data.build();
+	return cache[name];
+}
+
+/**
  * Upright card on XY with its base at y = 0 and a unit height (scale Y sets the height in cm)
  * @param {Object} profile - {rows: [{v, half, color, alpha}], columns: [{s, alpha}]}; s runs -1..1 across
  */
@@ -352,4 +409,6 @@ module.exports = {
 	strip: strip,
 	moat: moat,
 	moatEdge: moatEdge,
+	borderBand: borderBand,
+	borderCurtain: borderCurtain,
 };

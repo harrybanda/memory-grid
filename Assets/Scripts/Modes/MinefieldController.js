@@ -4,8 +4,11 @@
 // The current session's GridManager and StartZone are read from global.PathFinder on each placement.
 //
 // Round flow: ZONE_WAIT (stand on the glowing marker) -> SWEEP (rows light far to near, mines stay red)
-// -> STUDY (self-paced, ends on stepping onto the yellow row or at the cap) -> PLAY (mines hidden)
+// -> STUDY (self-paced, ends on stepping onto the board or at the cap) -> PLAY (mines hidden)
 // -> RESULT (win, mine hit or off the board; every mine relights) -> back to ZONE_WAIT for the next round.
+//
+// A caution-tape border (Visuals/BoardBorder) marks the board's edge. Its near side is an open gate while the
+// player waits on the marker; once they step on, it closes behind them, and any side lights up red as they near it.
 
 // @input SceneObject cameraObject {"label": "Camera", "hint": "The Camera Object with Device Tracking, for head position"}
 // @input Component.AudioComponent sfxPlayer {"label": "SFX Player", "hint": "Minefield's own AudioComponent, so its cues don't cut off the shared step/error channel"}
@@ -14,9 +17,10 @@
 var Constants = require("../Utils/Constants");
 var MinefieldLayouts = require("./MinefieldLayouts");
 var Helpers = require("./ModeHelpers");
+var BoardBorder = require("../Visuals/BoardBorder");
 
-// Board: 4 columns x 5 rows. Row 4 (nearest the player) is the start row, row 0 is the far row
-var ROWS = 5;
+// Board: 4 columns x 4 rows. Row 3 is nearest the player (the way on, and it can hold mines), row 0 is the far row
+var ROWS = 4;
 var COLUMNS = 4;
 
 var Config = {
@@ -39,12 +43,12 @@ var Config = {
 	GATE_DWELL: 0.5,
 	MIN_HEAD_HEIGHT: 100, // Head must be this high above the floor (not a carried headset); lowered at placement if needed
 
-	STUDY_LINE_Z: 40, // Study ends when the head crosses onto the yellow row (row centre z=25, edge z=50)
+	STUDY_LINE_Z: 40, // Study ends when the body steps onto the board (near row centre z=25, edge z=50)
 	GOAL_RADIUS: 25,
 	GOAL_DWELL: 0.3,
 
 	// Leaving the board during play costs a life (with one life, it ends the round) and locks the goal until the
-	// player is back on the yellow row, so walking around the outside can't reach the goal. The margin is how far
+	// player is back on the near row, so walking around the outside can't reach the goal. The margin is how far
 	// past a tile's outer edge the body estimate may stray: enough for a heel on the edge, not a path around it
 	OFF_BOARD_MARGIN: 10,
 	OFF_BOARD_DWELL: 0.3,
@@ -61,7 +65,6 @@ var Config = {
 
 var COLORS = {
 	DEFAULT: Constants.GridConfig.COLORS.TILE_DEFAULT,
-	START: Constants.GridConfig.COLORS.TILE_START,
 	GOAL: Constants.GridConfig.COLORS.TILE_END,
 	MINE: Constants.GridConfig.COLORS.TILE_WRONG,
 	FOOTPRINT: new vec4(1.0, 1.0, 1.0, 0.95),
@@ -104,11 +107,12 @@ var muteStepsUntil = 0;
 var studyStartTime = 0;
 var studyCap = 12;
 
-// Off-board state: while returning, the goal is locked until the head is back on the yellow row
+// Off-board state: while returning, the goal is locked until the head is back on the near row
 var boardBounds = null;
 var returningToStart = false;
 var offBoardTime = 0;
 var enteredBoard = false; // the back edge only counts once the player has been on the board this round
+var border = null; // built once, reused across sessions
 
 // Gate and dwell timers. The gate arms once per placement (see updateGate)
 var gateArmed = false;
@@ -153,7 +157,25 @@ function onGridPlaced(gridOrigin, floorY) {
 	// Only the first round after placement needs arming, so whoever placed the board can't start it
 	gateArmed = false;
 	moveMarkerToColumnTwo();
+	placeBorder();
 	enterZoneWait();
+}
+
+/**
+ * Builds the border once and lays it around this session's board
+ */
+function placeBorder() {
+	var style = global.PathFinder && global.PathFinder.VisualStyle;
+	if (!border && style) {
+		border = BoardBorder.create({
+			parent: script.getSceneObject(),
+			glowMaterial: style.glowMaterial,
+			scrollMaterial: style.scrollMaterial,
+			stripeTexture: style.hazardTexture,
+		});
+	}
+	var edges = computeBoardBounds();
+	if (border && edges) border.place(GridManager, edges);
 }
 
 // ============================================
@@ -172,6 +194,7 @@ function enterZoneWait() {
 	mineKeys = {};
 	clearBoard();
 	if (StartZone) StartZone.show();
+	if (border) border.setGateOpen(true);
 	showHud("STAND ON THE GLOW", 0);
 }
 
@@ -262,7 +285,7 @@ function endStudy() {
 function onTileEntered(x, z) {
 	if (!active) return;
 
-	// A tile entered during the sweep or study (normally the yellow row) starts the walk and counts as the
+	// A tile entered during the sweep or study (normally the near row) starts the walk and counts as the
 	// first footprint, so the once-per-round trigger latch can't swallow it
 	if (phase === Phase.SWEEP || phase === Phase.STUDY) {
 		endStudy();
@@ -328,16 +351,17 @@ function livesText() {
 }
 
 /**
- * The player walked off the board: costs a life and locks the goal until they return to the yellow row
+ * The player walked off the board: costs a life and locks the goal until they return to the near row
  */
 function leaveBoard() {
 	returningToStart = true;
 	offBoardTime = 0;
 	goalDwell = 0;
 	debugLog("Off the board");
+	if (border) border.flash();
 
 	if (loseLife("OFF THE BOARD")) {
-		showHud("OFF THE BOARD - " + livesText() + "\nBACK TO YELLOW", 0);
+		showHud("OFF THE BOARD - " + livesText() + "\nSTEP BACK ON AT THE FRONT", 0);
 	}
 }
 
@@ -400,6 +424,7 @@ function update() {
 	var body = Helpers.bodyLocal(GridManager, script.cameraObject) || head;
 
 	var dt = getDeltaTime();
+	if (border) border.update(dt, body, phase === Phase.PLAY);
 
 	if (phase === Phase.ZONE_WAIT) {
 		updateGate(head, dt);
@@ -469,21 +494,25 @@ function updateOffBoard(head, dt) {
 	if (!boardBounds) return;
 
 	if (returningToStart) {
-		// Back once the head is over the yellow row
-		var onYellowRow = head.x >= boardBounds.minX && head.x <= boardBounds.maxX && head.z >= boardBounds.startRowMinZ && head.z <= boardBounds.maxZ;
-		if (onYellowRow) {
+		// Back once the head is over the near row
+		var onNearRow = head.x >= boardBounds.minX && head.x <= boardBounds.maxX && head.z >= boardBounds.startRowMinZ && head.z <= boardBounds.maxZ;
+		if (onNearRow) {
 			returningToStart = false;
 			showHud("BACK ON THE BOARD", 1.5);
-			debugLog("Back on the yellow row");
+			debugLog("Back on the near row");
 		}
 		return;
 	}
 
-	// The back edge (behind the start row) only counts once the player has been on the board: the marker stands
+	// The back edge (behind the near row) only counts once the player has been on the board: the marker stands
 	// behind it, and the study timer can start the walk with the player still on the marker
 	var margin = Config.OFF_BOARD_MARGIN;
 	var inside = head.x >= boardBounds.minX && head.x <= boardBounds.maxX && head.z >= boardBounds.minZ && head.z <= boardBounds.maxZ;
-	if (inside) enteredBoard = true;
+	if (inside && !enteredBoard) {
+		enteredBoard = true;
+		// The gate closes behind them
+		if (border) border.setGateOpen(false);
+	}
 	var outside = head.x < boardBounds.minX - margin || head.x > boardBounds.maxX + margin || head.z < boardBounds.minZ - margin || (enteredBoard && head.z > boardBounds.maxZ + margin);
 
 	if (outside) {
@@ -571,7 +600,6 @@ function updateGoal(head, dt) {
  * @param {boolean} showMines - Whether mines are visible
  */
 function layoutColor(x, z, showMines) {
-	if (z === ROWS - 1) return COLORS.START;
 	if (layout && layout.goal.x === x && layout.goal.z === z) return COLORS.GOAL;
 	if (showMines && mineKeys[key(x, z)]) return COLORS.MINE;
 	return COLORS.DEFAULT;
@@ -679,6 +707,7 @@ function endRound() {
 	active = false;
 	setPhase(Phase.IDLE);
 	Helpers.stopTrack(script.sfxPlayer);
+	if (border) border.hide();
 
 	if (global.PathFinder && global.PathFinder.LookDownHint) {
 		global.PathFinder.LookDownHint.hide();

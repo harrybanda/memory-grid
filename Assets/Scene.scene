@@ -3878,6 +3878,8 @@
   ScriptInputs:
     "":
       glowMaterial: !<reference.Material> cf58a506-5bcc-4880-98a4-05dc77a28bff
+      scrollMaterial: !<reference.Material> 8ed9a3e1-5569-422b-b7a3-9f12555c906f
+      hazardTexture: !<reference.Texture> f0b4ea8f-d95b-4d45-b9f9-1d8e4ef0ca4b
   ScriptTypes:
     "":
       {}
