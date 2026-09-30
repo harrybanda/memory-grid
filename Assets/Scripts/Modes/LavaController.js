@@ -806,6 +806,7 @@ script.endSession = endSession;
 global.PathFinder = global.PathFinder || {};
 global.PathFinder.Modes = global.PathFinder.Modes || {};
 global.PathFinder.Modes.lava = {
+	levelCount: LEVELS.length, // shown on the menu card
 	onGridPlaced: onGridPlaced,
 	endRound: endSession,
 };

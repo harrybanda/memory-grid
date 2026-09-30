@@ -328,10 +328,10 @@ function updateLevelDisplay() {
 
 	// Update level text (the saved levels are Classic's; the other modes start at level 1 each session)
 	if (script.levelText) {
-		if (currentLevel > 11) {
+		if (currentLevel > Constants.LevelConfig.LEVEL_COUNT) {
 			script.levelText.text = "Classic · All levels complete!";
 		} else {
-			script.levelText.text = "Classic · Level " + currentLevel + " of 11";
+			script.levelText.text = "Classic · Level " + currentLevel + " of " + Constants.LevelConfig.LEVEL_COUNT;
 		}
 	}
 

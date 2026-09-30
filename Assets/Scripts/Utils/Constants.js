@@ -167,6 +167,8 @@ var LevelConfig = {
 	MAX_PATH_LENGTH: 25, // Max tiles on 5x5 grid
 	MEMORIZE_TIME: 5, // Constant 5 seconds
 };
+// Classic's levels run until the path fills the grid: 5, 7, ... 25 tiles is 11 levels
+LevelConfig.LEVEL_COUNT = Math.floor((LevelConfig.MAX_PATH_LENGTH - LevelConfig.BASE_PATH_LENGTH) / LevelConfig.PATH_INCREMENT) + 1;
 
 /**
  * Direction vectors for path generation

@@ -835,6 +835,7 @@ script.endRound = endRound;
 global.PathFinder = global.PathFinder || {};
 global.PathFinder.Modes = global.PathFinder.Modes || {};
 global.PathFinder.Modes.minefield = {
+	levelCount: MinefieldLayouts.LEVELS.length, // shown on the menu card
 	onGridPlaced: onGridPlaced,
 	endRound: endRound,
 };

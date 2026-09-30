@@ -14,12 +14,15 @@
 // @input Asset.Material iconMaterial {"label": "Icon Material", "hint": "An unlit image material with a baseTex (cloned per icon)"}
 
 var GlowMeshes = require("../Visuals/GlowMeshes");
+var Constants = require("../Utils/Constants");
 
+// mode: key in global.PathFinder.Modes, where each mode publishes its levelCount (Classic's comes from Constants)
+// tag: the level-count tag's colour, matching the mode's icon
 var CARDS = [
-	{ card: "classicCard", icon: "classicIcon", name: "CLASSIC", rule: "Watch the path light up,\nthen walk it from memory" },
-	{ card: "minefieldCard", icon: "minefieldIcon", name: "MINEFIELD", rule: "Remember the mines, then\ncross to the blue tile" },
-	{ card: "tonePadsCard", icon: "tonePadsIcon", name: "TONE PADS", rule: "Watch the pads play a tune,\nthen step it back in order" },
-	{ card: "lavaCard", icon: "lavaIcon", name: "FLOOR IS LAVA", rule: "Get to a safe tile\nbefore the lava lands" },
+	{ card: "classicCard", icon: "classicIcon", mode: "classic", name: "CLASSIC", rule: "Watch the path light up,\nthen walk it from memory", tag: new vec4(0.16, 0.7, 0.38, 0.95) },
+	{ card: "minefieldCard", icon: "minefieldIcon", mode: "minefield", name: "MINEFIELD", rule: "Remember the mines, then\ncross to the blue tile", tag: new vec4(0.8, 0.22, 0.18, 0.95) },
+	{ card: "tonePadsCard", icon: "tonePadsIcon", mode: "tonepads", name: "TONE PADS", rule: "Watch the pads play a tune,\nthen step it back in order", tag: new vec4(0.7, 0.25, 0.75, 0.95) },
+	{ card: "lavaCard", icon: "lavaIcon", mode: "lava", name: "FLOOR IS LAVA", rule: "Get to a safe tile\nbefore the lava lands", tag: new vec4(0.92, 0.45, 0.08, 0.95) },
 ];
 
 // Card layout in the card's own cm (cards are about 16.5 x 9.5)
@@ -34,7 +37,53 @@ var Layout = {
 	RULE_SIZE: 28, // readable at arm's length on the glasses (about 0.7cm letters)
 	RULE_COLOR: new vec4(0.72, 0.78, 0.86, 1),
 	LIFT: 0.15, // in front of the button face
+
+	// Level-count tag, straddling the card's top-right corner (cards are 16.5 x 9.5)
+	TAG_X: 5.6,
+	TAG_Y: 4.75,
+	TAG_HALF_WIDTH: 2.1,
+	TAG_SIZE: 24,
+	TAG_RENDER_ORDER: 100, // drawn after the logo image, whose faint backdrop would otherwise cover the top tags
+	TAG_PADDING: 0.35,
+	TAG_CORNER: 0.45,
 };
+
+/**
+ * How many levels a mode has right now, or 0 if it can't be found
+ */
+function levelCount(mode) {
+	if (mode === "classic") return Constants.LevelConfig.LEVEL_COUNT;
+	var modes = global.PathFinder && global.PathFinder.Modes;
+	return modes && modes[mode] && modes[mode].levelCount ? modes[mode].levelCount : 0;
+}
+
+/**
+ * A small coloured pill with the mode's level count, sticking out of the card's top-right corner
+ */
+function addLevelTag(card, spec, font) {
+	var count = levelCount(spec.mode);
+	if (!count) return;
+
+	var object = global.scene.createSceneObject("LevelTag");
+	object.setParent(card);
+	object.getTransform().setLocalPosition(new vec3(Layout.TAG_X, Layout.TAG_Y, Layout.LIFT * 2));
+	var tag = object.createComponent("Component.Text");
+	tag.font = font;
+	tag.text = count + (count === 1 ? " LEVEL" : " LEVELS");
+	tag.size = Layout.TAG_SIZE;
+	tag.horizontalAlignment = HorizontalAlignment.Center;
+	tag.verticalAlignment = VerticalAlignment.Center;
+	tag.worldSpaceRect = Rect.create(-Layout.TAG_HALF_WIDTH, Layout.TAG_HALF_WIDTH, -0.6, 0.6);
+	tag.depthTest = false;
+	tag.setRenderOrder(Layout.TAG_RENDER_ORDER);
+	tag.textFill.color = new vec4(1, 1, 1, 1);
+
+	var background = tag.backgroundSettings;
+	background.enabled = true;
+	background.fill.color = spec.tag;
+	background.cornerRadius = Layout.TAG_CORNER;
+	background.margins = Rect.create(Layout.TAG_PADDING, Layout.TAG_PADDING, Layout.TAG_PADDING * 0.6, Layout.TAG_PADDING * 0.6);
+}
 
 function findText(object) {
 	var text = object.getComponent("Component.Text");
@@ -72,6 +121,8 @@ function decorate(card, spec, icon) {
 	rule.text = spec.rule;
 	rule.textFill.color = Layout.RULE_COLOR;
 	placeText(rule, Layout.RULE_Y, Layout.RULE_SIZE, 2.6);
+
+	addLevelTag(card, spec, name.font);
 
 	if (icon && script.iconMaterial) {
 		var iconObject = global.scene.createSceneObject("Icon");
