@@ -24,14 +24,14 @@ var CARDS = [
 
 // Card layout in the card's own cm (cards are about 16.5 x 9.5)
 var Layout = {
-	ICON_X: -4.9,
-	ICON_SIZE: 6.4,
-	TEXT_X: 2.8, // centre of the text column
-	TEXT_HALF_WIDTH: 4.7,
-	NAME_Y: 1.9,
-	NAME_SIZE: 34,
-	RULE_Y: -1.5,
-	RULE_SIZE: 21,
+	ICON_X: -5.1,
+	ICON_SIZE: 6.2,
+	TEXT_X: 3.2, // centre of the text column, which starts just right of the icon
+	TEXT_HALF_WIDTH: 4.6,
+	NAME_Y: 2.3,
+	NAME_SIZE: 44,
+	RULE_Y: -1.3,
+	RULE_SIZE: 28, // readable at arm's length on the glasses (about 0.7cm letters)
 	RULE_COLOR: new vec4(0.72, 0.78, 0.86, 1),
 	LIFT: 0.15, // in front of the button face
 };
@@ -63,7 +63,7 @@ function decorate(card, spec, icon) {
 		return;
 	}
 	name.text = spec.name;
-	placeText(name, Layout.NAME_Y, Layout.NAME_SIZE, 1.3);
+	placeText(name, Layout.NAME_Y, Layout.NAME_SIZE, 1.5);
 
 	var ruleObject = global.scene.createSceneObject("Rule");
 	ruleObject.setParent(card);
@@ -71,7 +71,7 @@ function decorate(card, spec, icon) {
 	rule.font = name.font;
 	rule.text = spec.rule;
 	rule.textFill.color = Layout.RULE_COLOR;
-	placeText(rule, Layout.RULE_Y, Layout.RULE_SIZE, 2.2);
+	placeText(rule, Layout.RULE_Y, Layout.RULE_SIZE, 2.6);
 
 	if (icon && script.iconMaterial) {
 		var iconObject = global.scene.createSceneObject("Icon");

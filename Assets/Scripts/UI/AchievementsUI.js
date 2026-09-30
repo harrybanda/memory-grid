@@ -498,14 +498,14 @@ function showComingSoon(modeName) {
 		var object = global.scene.createSceneObject("ComingSoon");
 		object.setParent(script.getSceneObject());
 		var gridY = script.gridContainer ? script.gridContainer.getTransform().getLocalPosition().y : 0;
-		object.getTransform().setLocalPosition(new vec3(0, gridY - 10, 0.05));
+		object.getTransform().setLocalPosition(new vec3(0, gridY - 12, 0.05));
 		comingSoonText = object.createComponent("Component.Text");
 		if (source) comingSoonText.font = source.font;
-		comingSoonText.size = 30;
+		comingSoonText.size = 44;
 		comingSoonText.horizontalAlignment = HorizontalAlignment.Center;
 		comingSoonText.verticalAlignment = VerticalAlignment.Center;
 		comingSoonText.worldSpaceRect = Rect.create(-13, 13, -4, 4);
-		comingSoonText.textFill.color = new vec4(0.75, 0.8, 0.88, 1);
+		comingSoonText.textFill.color = new vec4(0.92, 0.94, 0.98, 1);
 		comingSoonText.depthTest = false;
 	}
 	comingSoonText.text = modeName + " ACHIEVEMENTS\nARE COMING SOON";
