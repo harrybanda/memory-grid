@@ -57,8 +57,10 @@ var Config = {
 	// Mines also count when the body estimate stays in a mine's cell, so nobody can slip past along the gaps
 	// the tile triggers don't reach. On a side that faces another mine the cell runs to the middle of the gap
 	// (MINE_CELL_SHARED), closing the seam between the two; on a side that faces a safe tile or the board edge
-	// it stops a little inside the tile (MINE_CELL_OPEN). Layouts never need a diagonal past a mine's corner
-	// (tools/minefield-layouts.js forbids it), so every route can be walked tile centre to tile centre
+	// it stops a little inside the tile (MINE_CELL_OPEN). On a side facing off the board (left, right or far)
+	// it runs all the way to the off-board line, so there's no lane between a mine and the edge to walk past it.
+	// Layouts never need a diagonal past a mine's corner (tools/minefield-layouts.js forbids it), so every route
+	// can be walked tile centre to tile centre
 	MINE_CELL_SHARED: 27.5,
 	MINE_CELL_OPEN: 20,
 	MINE_CELL_DWELL: 0.2, // Seconds in the cell before it counts (filters a brief lean)
@@ -113,6 +115,7 @@ var boardBounds = null;
 var returningToStart = false;
 var offBoardTime = 0;
 var enteredBoard = false; // the back edge only counts once the player has been on the board this round
+var nearRowShown = false; // the walk can't start until the sweep has shown the near row's mines
 var border = null; // built once, reused across sessions
 
 // Gate and dwell timers. The gate arms once per placement (see updateGate)
@@ -223,6 +226,7 @@ function startRound() {
 	returningToStart = false;
 	offBoardTime = 0;
 	enteredBoard = false;
+	nearRowShown = false;
 	mineCellKey = null;
 	mineCellTime = 0;
 	boardBounds = computeBoardBounds();
@@ -254,6 +258,7 @@ function scheduleSweepRow(row, delay) {
 		for (var x = 0; x < COLUMNS; x++) {
 			paint(x, row, layoutColor(x, row, true));
 		}
+		if (row === ROWS - 1) nearRowShown = true;
 		playSfx("playCountdown");
 	});
 }
@@ -289,6 +294,9 @@ function onTileEntered(x, z) {
 	// A tile entered during the sweep or study (normally the near row) starts the walk and counts as the
 	// first footprint, so the once-per-round trigger latch can't swallow it
 	if (phase === Phase.SWEEP || phase === Phase.STUDY) {
+		// Too early: the near row's mines haven't been shown yet (a mine entered now is still caught once the
+		// walk starts, by the mine-cell check)
+		if (!nearRowShown) return;
 		endStudy();
 	}
 	if (phase !== Phase.PLAY) return;
@@ -430,7 +438,7 @@ function update() {
 	if (phase === Phase.ZONE_WAIT) {
 		updateGate(head, dt);
 	} else if (phase === Phase.SWEEP) {
-		if (body.z < Config.STUDY_LINE_Z) {
+		if (nearRowShown && body.z < Config.STUDY_LINE_Z) {
 			endStudy();
 		}
 	} else if (phase === Phase.STUDY) {
@@ -486,8 +494,12 @@ function isInMineCell(body, x, z) {
 	var dz = body.z - centre.z;
 
 	// Neighbours in grid terms: +gridX is +local x; +gridZ is +local z (toward the player)
-	var reachX = mineKeys[key(x + (dx >= 0 ? 1 : -1), z)] ? Config.MINE_CELL_SHARED : Config.MINE_CELL_OPEN;
-	var reachZ = mineKeys[key(x, z + (dz >= 0 ? 1 : -1))] ? Config.MINE_CELL_SHARED : Config.MINE_CELL_OPEN;
+	var edgeReach = Config.TILE_HALF + Config.OFF_BOARD_MARGIN;
+	var sideX = x + (dx >= 0 ? 1 : -1);
+	var sideZ = z + (dz >= 0 ? 1 : -1);
+	var reachX = mineKeys[key(sideX, z)] ? Config.MINE_CELL_SHARED : sideX < 0 || sideX >= COLUMNS ? edgeReach : Config.MINE_CELL_OPEN;
+	// The near side (sideZ >= ROWS) stays open: the way on from the marker runs behind the near row
+	var reachZ = mineKeys[key(x, sideZ)] ? Config.MINE_CELL_SHARED : sideZ < 0 ? edgeReach : Config.MINE_CELL_OPEN;
 	return Math.abs(dx) <= reachX && Math.abs(dz) <= reachZ;
 }
 

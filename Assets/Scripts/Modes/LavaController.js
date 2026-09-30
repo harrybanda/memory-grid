@@ -319,6 +319,7 @@ function cool() {
 	}
 
 	clock.later(Config.COOL_TIME, function () {
+		if (phase !== Phase.COOL) return; // the level failed during the cool-down
 		waveIndex++;
 		if (waveIndex >= LEVELS[levelIndex].waves.length) {
 			clearLevel();
@@ -345,6 +346,8 @@ function clearLevel() {
  * @param {string} reason - HUD headline
  */
 function failLevel(reason) {
+	// Cancels whatever was pending (a burn during the cool-down would otherwise still run the next wave)
+	clock.invalidate();
 	setPhase(Phase.RESULT);
 	Helpers.playSfx("playError");
 	if (fx) {
@@ -492,7 +495,8 @@ function updateOccupancy(head, dt) {
  * @returns {boolean} True when settled on settleTile
  */
 function updateSettle(dt) {
-	var near = !!nearest && Helpers.horizontalDistance(bodyNow, centres[nearest.z][nearest.x]) <= Config.SETTLE_RADIUS;
+	// A crumbled tile is never a place to settle: a wave planned from it would have no safe tile in reach
+	var near = !!nearest && !molten[key(nearest.x, nearest.z)] && Helpers.horizontalDistance(bodyNow, centres[nearest.z][nearest.x]) <= Config.SETTLE_RADIUS;
 	if (!near) {
 		settleTile = null;
 		settleTime = 0;
