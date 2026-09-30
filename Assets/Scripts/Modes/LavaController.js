@@ -2,10 +2,13 @@
 // Floor Is Lava mode: tiles warn in amber, then burn. Be on a safe tile when the lava lands.
 // Lives in the scene (not the per-session Surface prefab); PlacementBridge routes to it.
 //
-// Flow: WAIT_START (step into the light on the centre tile) -> COUNTDOWN -> waves:
-//   SETTLE (stand near a tile centre) -> WARN (burning tiles pulse amber; a cyan pillar marks a safe tile
-//   one step forward or sideways, or the game says FREEZE) -> LAND (flames rise; judged over a short
-//   grace window) -> COOL -> next wave. Clear all waves to clear the level; three levels, then it loops.
+// Flow: WAIT_START (step into the light) -> COUNTDOWN -> waves:
+//   SETTLE (stand near a tile centre) -> WARN (burning tiles pulse amber; on level 1 a cyan pillar marks a
+//   safe tile, after that the player has to read the board) -> LAND (flames rise; judged over a short grace
+//   window) -> COOL -> next wave. Clear all waves to clear the level; three levels, then it loops.
+//
+// One life: a single burn restarts the level. The board sits in a lava moat, so stepping off it burns too.
+// On the last level the floor crumbles: the tile each wave starts from stays lava for the rest of the level.
 //
 // Where the player stands is tracked every frame from a body estimate: the head position pulled back when
 // looking down (ModeHelpers.bodyLocal), since the tile triggers only report first entries and looking at
@@ -13,8 +16,8 @@
 // CONFIRM_RADIUS of its centre for CONFIRM_DWELL, so leans and head bob don't move it. At landing the
 // player is safe if either the confirmed tile or the nearest tile is safe in any frame of the grace window.
 //
-// All visuals are drawn by LavaFx (glowing frames, lava cores, flame tongues, the safe beacon); the grid's
-// own tile boxes are hidden while this mode runs.
+// All visuals are drawn by LavaFx (glowing frames, lava cores, flame tongues, the safe beacon, the moat);
+// the grid's own tile boxes are hidden while this mode runs.
 
 // @input SceneObject cameraObject {"label": "Camera", "hint": "The Camera Object with Device Tracking, for head position"}
 // @input Asset.Material fxScrollMaterial {"label": "FX Scroll Material", "hint": "LavaFX_Scroll: additive, textured, vertex colour, UV2 scroll"}
@@ -30,12 +33,15 @@ var LavaFx = require("./LavaFx");
 
 var TAG = "Lava";
 
-var ROWS = 3;
-var COLUMNS = 3;
-var CENTRE = { x: 1, z: 1 };
+var ROWS = 4;
+var COLUMNS = 4;
+// Where the player steps in: one tile in from the near edge, in the column straight ahead of the placement
+// point (on a 4-wide board that point is the gap between columns 1 and 2)
+var START = { x: 2, z: 2 };
+var BOARD_MIDDLE = { x: (COLUMNS - 1) / 2, z: (ROWS - 1) / 2 };
 
-// Wave types. LINE burns the player's row or column; CHECKER burns every tile of the player's colour;
-// ISLAND burns everything except one neighbour; FREEZE burns everything except where the player stands
+// Wave types. LINE burns the player's row and/or column; CHECKER burns every tile of the player's colour;
+// ISLAND burns everything except one tile; FREEZE burns everything except where the player stands
 var Wave = {
 	LINE: "line",
 	CHECKER: "checker",
@@ -43,22 +49,53 @@ var Wave = {
 	FREEZE: "freeze",
 };
 
-// Three levels for testing
+// ISLAND is the hard wave: one safe tile to find. beacon: the cyan pillar marks a safe tile. reach: how far away the safe tile can be (2 = two tiles in a
+// straight line), diagonal: whether it can be a diagonal step. crumble: the tile each wave starts from stays lava
 var LEVELS = [
-	{ warn: 3.0, waves: [Wave.LINE, Wave.LINE, Wave.CHECKER, Wave.LINE] },
-	{ warn: 2.5, waves: [Wave.LINE, Wave.CHECKER, Wave.FREEZE, Wave.LINE, Wave.ISLAND] },
-	{ warn: 2.0, waves: [Wave.CHECKER, Wave.LINE, Wave.FREEZE, Wave.ISLAND, Wave.FREEZE, Wave.ISLAND] },
+	{
+		warn: 2.4,
+		beacon: true,
+		reach: 1,
+		diagonal: false,
+		crumble: false,
+		intro: "FOLLOW THE LIGHT",
+		waves: [Wave.LINE, Wave.CHECKER, Wave.ISLAND, Wave.LINE, Wave.ISLAND],
+	},
+	{
+		warn: 2.0,
+		beacon: false,
+		reach: 1,
+		diagonal: true,
+		crumble: false,
+		intro: "NO MORE HINTS",
+		waves: [Wave.LINE, Wave.ISLAND, Wave.CHECKER, Wave.ISLAND, Wave.FREEZE, Wave.LINE, Wave.ISLAND],
+	},
+	{
+		warn: 2.0,
+		beacon: false,
+		reach: 2,
+		diagonal: true,
+		crumble: true,
+		intro: "THE FLOOR CRUMBLES",
+		waves: [Wave.CHECKER, Wave.ISLAND, Wave.LINE, Wave.ISLAND, Wave.FREEZE, Wave.CHECKER, Wave.ISLAND, Wave.ISLAND],
+	},
 ];
 
 var Config = {
-	LIVES: 3, // Every wave is judged from head position, so a couple of spare lives absorb misreads
+	LIVES: 1, // One burn restarts the level. Raising it brings back "BURNED! n LIVES LEFT"
 
 	CONFIRM_RADIUS: 21, // cm from a tile centre before that tile can become the confirmed tile (< half the 55cm pitch)
 	CONFIRM_DWELL: 0.3, // seconds the head must hold there
 	SETTLE_RADIUS: 26, // a wave only starts once the body holds this close to a tile's centre for CONFIRM_DWELL
 	SETTLE_HINT_AFTER: 1.5, // seconds unsettled before "STEP TO THE MIDDLE OF THE LIT TILE"
-	OFF_BOARD_MARGIN: 20, // head this far past the board's edge counts as off the board
 	TILE_HALF: 25,
+
+	// The moat: the body this far past the tiles' outer edge is in the lava. Enough for a heel on the edge
+	MOAT_MARGIN: 12,
+	MOAT_DWELL: 0.35,
+	// Crumbled tiles: the body within this of one's centre (on both axes) is on it
+	MOLTEN_REACH: 20,
+	MOLTEN_DWELL: 0.5, // a little longer, so the player can step off a tile that crumbles under them
 
 	LAND_GRACE: 0.4, // judgement window after the lava lands
 	LAVA_HOLD: 1.0,
@@ -97,21 +134,24 @@ var bounds = null;
 var levelIndex = 0;
 var waveIndex = 0;
 var lives = 0;
+var molten = {}; // "x,z" -> true for tiles that crumbled this level
 
 // Occupancy
 var confirmed = null; // {x, z} or null
 var candidate = null;
 var candidateTime = 0;
-var nearest = null; // {x, z} or null when off the board
+var nearest = null; // {x, z} or null when off the board (in the moat)
 var bodyNow = null;
 var nearestHead = null; // tile nearest the raw head; the landing check accepts either estimate
 var settleTile = null;
 var settleTime = 0;
 var settleShown = null; // tile lit faintly while waiting to settle, so the player sees which tile counts
+var hazardTime = 0; // how long the body has been in the moat or on a crumbled tile
 
 // Current wave
 var burning = {}; // "x,z" -> true
-var safeTarget = null; // tile the pillar marks
+var safeTarget = null; // a tile guaranteed safe (the pillar marks it on beacon levels)
+var waveStart = null; // the tile the wave was planned from (it crumbles on crumble levels)
 var waveType = null;
 var savedDuringGrace = false;
 var tickTimer = 0;
@@ -154,6 +194,7 @@ function onGridPlaced(gridOrigin, floorY) {
 	confirmed = null;
 	candidate = null;
 	levelIndex = 0;
+	molten = {};
 	enterWaitStart();
 }
 
@@ -165,14 +206,16 @@ function enterWaitStart() {
 	setPhase(Phase.WAIT_START);
 	if (fx) {
 		fx.resetBoard();
-		fx.setSafe(CENTRE, true);
+		fx.setSafe(START, true);
 	}
 	setHud("FLOOR IS LAVA\nSTEP INTO THE LIGHT", 0);
 }
 
 function startCountdown() {
 	setPhase(Phase.COUNTDOWN);
+	molten = {};
 	if (fx) {
+		fx.clearMolten();
 		fx.hideSafe();
 		fx.resetBoard(0.3);
 	}
@@ -192,7 +235,7 @@ function startCountdown() {
 
 function scheduleCount(text, index) {
 	clock.later(index, function () {
-		setHud("LEVEL " + (levelIndex + 1) + "\n" + text, 0);
+		setHud("LEVEL " + (levelIndex + 1) + ": " + LEVELS[levelIndex].intro + "\n" + text, 0);
 		Helpers.playSfx("playCountdown");
 	});
 }
@@ -220,6 +263,7 @@ function startWave() {
 	waveType = plan.type;
 	burning = plan.burning;
 	safeTarget = plan.safe;
+	waveStart = confirmed ? { x: confirmed.x, z: confirmed.z } : null;
 	savedDuringGrace = false;
 	tickTimer = 0;
 	warnPhase = 0;
@@ -227,9 +271,12 @@ function startWave() {
 	setPhase(Phase.WARN);
 	if (fx) {
 		fx.resetBoard();
-		fx.setWarnTiles(burningList());
-		// No pillar on a FREEZE: it would stand on the player's own tile
-		fx.setSafe(safeTarget, waveType !== Wave.FREEZE);
+		// Crumbled tiles are already lava; only the fresh ones show the warning cracks
+		fx.setWarnTiles(burningList(true));
+		if (level.beacon) {
+			// No pillar on a FREEZE: it would stand on the player's own tile
+			fx.setSafe(safeTarget, waveType !== Wave.FREEZE);
+		}
 	}
 	setHud(waveType === Wave.FREEZE ? "FREEZE!" : "MOVE!", 0);
 }
@@ -249,12 +296,12 @@ function judgeWave() {
 		if (fx) fx.safePing(playerTile());
 	} else {
 		lives--;
-		Helpers.playSfx("playError");
-		if (fx) fx.burnFlash(playerTile());
 		if (lives <= 0) {
-			loseLevel();
+			failLevel("BURNED!");
 			return;
 		}
+		Helpers.playSfx("playError");
+		if (fx) fx.burnFlash(playerTile());
 		setHud("BURNED! " + lives + (lives === 1 ? " LIFE LEFT" : " LIVES LEFT"), 1.5);
 	}
 
@@ -264,6 +311,12 @@ function judgeWave() {
 function cool() {
 	setPhase(Phase.COOL);
 	if (fx) fx.cool(Config.COOL_TIME);
+
+	// The floor crumbles: the tile this wave started from stays lava (a FREEZE's start tile was the safe one)
+	if (LEVELS[levelIndex].crumble && waveType !== Wave.FREEZE && waveStart) {
+		molten[key(waveStart.x, waveStart.z)] = true;
+		if (fx) fx.setMolten([waveStart]);
+	}
 
 	clock.later(Config.COOL_TIME, function () {
 		waveIndex++;
@@ -287,10 +340,18 @@ function clearLevel() {
 	clock.later(finished ? 4.0 : 3.0, startCountdown);
 }
 
-function loseLevel() {
+/**
+ * Out of lives (or into the lava): the board burns out and the level restarts
+ * @param {string} reason - HUD headline
+ */
+function failLevel(reason) {
 	setPhase(Phase.RESULT);
-	if (fx) fx.burnedOut();
-	setHud("BURNED OUT\nLEVEL " + (levelIndex + 1) + " AGAIN", 0);
+	Helpers.playSfx("playError");
+	if (fx) {
+		fx.burnFlash(playerTile());
+		fx.burnedOut();
+	}
+	setHud(reason + "\nLEVEL " + (levelIndex + 1) + " AGAIN", 0);
 
 	clock.later(Config.LAVA_HOLD, function () {
 		if (fx) fx.sinkFlames();
@@ -317,8 +378,15 @@ function update() {
 	var head = Helpers.headLocal(GridManager, script.cameraObject);
 	nearestHead = head ? nearestTile(head) : null;
 
+	// The moat and crumbled tiles burn at any time between waves, not just when the lava lands. Before the
+	// first wave they don't, so a restarted level doesn't burn someone who wandered off during the countdown
+	var hazardsLive = phase === Phase.WARN || phase === Phase.COOL || (phase === Phase.SETTLE && waveIndex > 0);
+	if (hazardsLive && updateHazards(dt)) {
+		return;
+	}
+
 	if (phase === Phase.WAIT_START) {
-		if (confirmed && confirmed.x === CENTRE.x && confirmed.z === CENTRE.z) {
+		if (confirmed && confirmed.x === START.x && confirmed.z === START.z) {
 			startCountdown();
 		}
 	} else if (phase === Phase.SETTLE) {
@@ -328,7 +396,7 @@ function update() {
 			confirmed = { x: settleTile.x, z: settleTile.z };
 			startWave();
 		} else if (!nearest) {
-			setHud("BACK ON THE BOARD", 0);
+			setHud("STEP ONTO THE BOARD", 0);
 		} else if (phaseTime >= Config.SETTLE_HINT_AFTER) {
 			setHud("STEP TO THE MIDDLE OF THE LIT TILE", 0);
 		}
@@ -349,6 +417,43 @@ function update() {
 			judgeWave();
 		}
 	}
+}
+
+/**
+ * Burns the player for standing in the moat or on a crumbled tile
+ * @returns {boolean} True if the level just failed
+ */
+function updateHazards(dt) {
+	var reason = null;
+	var dwell = Config.MOAT_DWELL;
+	if (!nearest) {
+		reason = "INTO THE LAVA!";
+	} else if (isOnMolten(bodyNow)) {
+		reason = "THAT TILE IS LAVA!";
+		dwell = Config.MOLTEN_DWELL;
+	}
+
+	if (!reason) {
+		hazardTime = 0;
+		return false;
+	}
+	hazardTime += dt;
+	if (hazardTime < dwell) return false;
+
+	hazardTime = 0;
+	failLevel(reason);
+	return true;
+}
+
+function isOnMolten(body) {
+	for (var k in molten) {
+		var tile = parseKey(k);
+		var centre = centres[tile.z][tile.x];
+		if (Math.abs(body.x - centre.x) <= Config.MOLTEN_REACH && Math.abs(body.z - centre.z) <= Config.MOLTEN_REACH) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -409,16 +514,18 @@ function showSettleTile() {
 	if (same || (!settleShown && !nearest)) return;
 	if (settleShown && fx) fx.setPlateLook(settleShown.x, settleShown.z, "idle");
 	settleShown = nearest ? { x: nearest.x, z: nearest.z } : null;
-	if (settleShown && fx) fx.setPlateLook(settleShown.x, settleShown.z, "settle");
+	if (settleShown && fx && !molten[key(settleShown.x, settleShown.z)]) fx.setPlateLook(settleShown.x, settleShown.z, "settle");
 }
 
 /**
  * Lenient landing check: safe if either the confirmed tile or the nearest tile is not burning.
- * FREEZE waves use the nearest tile only: the confirmed tile is the safe one, so it can't excuse stepping off it
+ * Never safe in the moat. FREEZE waves use the nearest tile only: the confirmed tile is the safe one,
+ * so it can't excuse stepping off it
  */
 function isSafeNow() {
+	if (!nearest) return false;
 	// The body estimate can over- or under-correct for looking down, so either it or the raw head counts
-	var nearestSafe = (!!nearest && !burning[key(nearest.x, nearest.z)]) || (!!nearestHead && !burning[key(nearestHead.x, nearestHead.z)]);
+	var nearestSafe = !burning[key(nearest.x, nearest.z)] || (!!nearestHead && !burning[key(nearestHead.x, nearestHead.z)]);
 	if (waveType === Wave.FREEZE) return nearestSafe;
 	var confirmedSafe = !!confirmed && !burning[key(confirmed.x, confirmed.z)];
 	return confirmedSafe || nearestSafe;
@@ -448,43 +555,60 @@ function updateWarning(dt) {
 // ============================================
 
 /**
- * Picks which tiles burn so the player always has a fair answer: one step forward or sideways onto
- * a safe tile, or staying put (FREEZE). If no safe neighbour is in front of or beside the player,
- * the wave becomes a FREEZE
+ * Picks which tiles burn so the player always has a fair answer: a safe tile within the level's reach
+ * that isn't behind them, or staying put (FREEZE). If there is no such tile, the wave becomes a FREEZE.
+ * Crumbled tiles always burn
  * @param {string} type - Wave type from the level table
  * @returns {Object} {type, burning, safe}
  */
 function planWave(type) {
-	var standing = confirmed || CENTRE;
+	var standing = confirmed || START;
 
 	if (type !== Wave.FREEZE) {
-		var target = pickTarget(standing);
+		var target = pickTarget(standing, type);
 		if (target) {
-			return { type: type, burning: burnSet(type, standing, target), safe: target };
+			return { type: type, burning: withMolten(burnSet(type, standing, target)), safe: target };
 		}
-		Helpers.debugLog(TAG, "No safe neighbour in front - FREEZE instead of " + type);
+		Helpers.debugLog(TAG, "No safe tile in reach - FREEZE instead of " + type);
 	}
 
-	return { type: Wave.FREEZE, burning: burnSet(Wave.FREEZE, standing, standing), safe: standing };
+	return { type: Wave.FREEZE, burning: withMolten(burnSet(Wave.FREEZE, standing, standing)), safe: standing };
 }
 
 /**
- * The orthogonal neighbour to move to: not behind the player's facing, preferring tiles nearer the
- * centre so the player isn't pushed to the edge
+ * A tile to move to: within the level's reach, not crumbled (nor a crumbled tile in between), not behind
+ * the player's facing, and one the wave type can leave safe. Prefers tiles toward the middle of the board,
+ * so the player isn't pushed into a corner
  */
-function pickTarget(standing) {
+function pickTarget(standing, type) {
+	var level = LEVELS[levelIndex];
 	var heading = Helpers.viewLocal(GridManager, script.cameraObject);
 	var options = [];
-	var directions = [
+
+	var steps = [
 		{ x: 1, z: 0 },
 		{ x: -1, z: 0 },
 		{ x: 0, z: 1 },
 		{ x: 0, z: -1 },
 	];
+	if (level.diagonal) {
+		steps.push({ x: 1, z: 1 }, { x: 1, z: -1 }, { x: -1, z: 1 }, { x: -1, z: -1 });
+	}
+	if (level.reach >= 2) {
+		steps.push({ x: 2, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 2 }, { x: 0, z: -2 });
+	}
 
-	for (var i = 0; i < directions.length; i++) {
-		var tile = { x: standing.x + directions[i].x, z: standing.z + directions[i].z };
+	for (var i = 0; i < steps.length; i++) {
+		var tile = { x: standing.x + steps[i].x, z: standing.z + steps[i].z };
 		if (tile.x < 0 || tile.x >= COLUMNS || tile.z < 0 || tile.z >= ROWS) continue;
+		if (molten[key(tile.x, tile.z)]) continue;
+		// Two tiles away means crossing the one in between
+		var between = { x: standing.x + steps[i].x / 2, z: standing.z + steps[i].z / 2 };
+		if (Math.abs(steps[i].x) === 2 || Math.abs(steps[i].z) === 2) {
+			if (molten[key(between.x, between.z)]) continue;
+		}
+		// CHECKER leaves only the other colour safe
+		if (type === Wave.CHECKER && (tile.x + tile.z) % 2 === (standing.x + standing.z) % 2) continue;
 
 		if (heading) {
 			var step = centres[tile.z][tile.x].sub(centres[standing.z][standing.x]);
@@ -493,8 +617,8 @@ function pickTarget(standing) {
 			if (facing < Config.BEHIND_LIMIT) continue;
 		}
 
-		var distanceToCentre = Math.abs(tile.x - CENTRE.x) + Math.abs(tile.z - CENTRE.z);
-		options.push({ tile: tile, score: distanceToCentre + Math.random() * 0.5 });
+		var distanceToMiddle = Math.abs(tile.x - BOARD_MIDDLE.x) + Math.abs(tile.z - BOARD_MIDDLE.z);
+		options.push({ tile: tile, score: distanceToMiddle + Math.random() * 1.0 });
 	}
 
 	if (options.length === 0) return null;
@@ -509,8 +633,8 @@ function burnSet(type, standing, target) {
 	forEachTile(function (x, z) {
 		var burns;
 		if (type === Wave.LINE) {
-			// Target beside the player: burn the player's column; in front or behind: burn the row
-			burns = target.z === standing.z ? x === standing.x : z === standing.z;
+			// Burn the player's row if the target is ahead or behind, their column if it's beside, both if diagonal
+			burns = (target.z !== standing.z && z === standing.z) || (target.x !== standing.x && x === standing.x);
 		} else if (type === Wave.CHECKER) {
 			burns = (x + z) % 2 === (standing.x + standing.z) % 2;
 		} else if (type === Wave.ISLAND) {
@@ -523,21 +647,31 @@ function burnSet(type, standing, target) {
 	return result;
 }
 
+function withMolten(set) {
+	for (var k in molten) {
+		set[k] = true;
+	}
+	return set;
+}
+
 // ============================================
 // BOARD AND VISUALS
 // ============================================
 
-function nearestTile(head) {
+/**
+ * The tile nearest a point, or null when the point is in the moat
+ */
+function nearestTile(point) {
 	if (!bounds) return null;
-	var margin = Config.OFF_BOARD_MARGIN;
-	if (head.x < bounds.minX - margin || head.x > bounds.maxX + margin || head.z < bounds.minZ - margin || head.z > bounds.maxZ + margin) {
+	var margin = Config.MOAT_MARGIN;
+	if (point.x < bounds.minX - margin || point.x > bounds.maxX + margin || point.z < bounds.minZ - margin || point.z > bounds.maxZ + margin) {
 		return null;
 	}
 
 	var best = null;
 	var bestDistance = Infinity;
 	forEachTile(function (x, z) {
-		var distance = Helpers.horizontalDistance(head, centres[z][x]);
+		var distance = Helpers.horizontalDistance(point, centres[z][x]);
 		if (distance < bestDistance) {
 			bestDistance = distance;
 			best = { x: x, z: z };
@@ -599,13 +733,17 @@ function setTileBoxesVisible(visible) {
  * The tile the player is over right now, for centring effects
  */
 function playerTile() {
-	return nearest || confirmed || CENTRE;
+	return nearest || confirmed || START;
 }
 
-function burningList() {
+/**
+ * @param {boolean} skipMolten - Leave out tiles that have crumbled
+ */
+function burningList(skipMolten) {
 	var list = [];
 	forEachTile(function (x, z) {
-		if (burning[key(x, z)]) list.push({ x: x, z: z });
+		var k = key(x, z);
+		if (burning[k] && !(skipMolten && molten[k])) list.push({ x: x, z: z });
 	});
 	return list;
 }
@@ -638,12 +776,18 @@ function setHud(text, seconds) {
 function setPhase(newPhase) {
 	phase = newPhase;
 	phaseTime = 0;
+	hazardTime = 0;
 	lastHudText = null;
 	Helpers.debugLog(TAG, "Phase: " + newPhase);
 }
 
 function key(x, z) {
 	return x + "," + z;
+}
+
+function parseKey(k) {
+	var parts = k.split(",");
+	return { x: parseInt(parts[0], 10), z: parseInt(parts[1], 10) };
 }
 
 script.createEvent("UpdateEvent").bind(function () {

@@ -44,11 +44,12 @@ var FACING = [0, 0, 1];
 var WHITE = [1, 1, 1];
 
 /**
- * Concentric flat squares on XZ joined into bands (the first square is also filled)
- * @param {Array} rings - [{half, alpha}] from the inside out, in cm
+ * Concentric flat rectangles on XZ joined into bands; the first is filled unless `hollow`
+ * @param {Array} rings - [{half, alpha}] or [{halfX, halfZ, alpha}] from the inside out, in cm
  * @param {number} uvSize - Width in cm that UV 0-1 spans
+ * @param {boolean} hollow - Leave the inside of the first rectangle empty
  */
-function squareRings(rings, uvSize) {
+function squareRings(rings, uvSize, hollow) {
 	var data = new MeshData();
 	var corners = [
 		[-1, -1],
@@ -57,13 +58,15 @@ function squareRings(rings, uvSize) {
 		[-1, 1],
 	];
 	for (var r = 0; r < rings.length; r++) {
+		var halfX = rings[r].halfX !== undefined ? rings[r].halfX : rings[r].half;
+		var halfZ = rings[r].halfZ !== undefined ? rings[r].halfZ : rings[r].half;
 		for (var c = 0; c < 4; c++) {
-			var x = corners[c][0] * rings[r].half;
-			var z = corners[c][1] * rings[r].half;
+			var x = corners[c][0] * halfX;
+			var z = corners[c][1] * halfZ;
 			data.vertex(x, 0, z, UP, x / uvSize + 0.5, z / uvSize + 0.5, WHITE, rings[r].alpha);
 		}
 	}
-	data.quad(0, 1, 2, 3);
+	if (!hollow) data.quad(0, 1, 2, 3);
 	for (var i = 0; i < rings.length - 1; i++) {
 		for (var s = 0; s < 4; s++) {
 			var next = (s + 1) % 4;
@@ -106,6 +109,46 @@ function core() {
 		);
 	}
 	return cache.core;
+}
+
+/**
+ * Lava moat: a band around a board whose tile edges are halfX/halfZ from its centre. A thin gap, then lava
+ * that fades out over the outer part. Cached per board size
+ */
+function moat(halfX, halfZ) {
+	var name = "moat" + halfX + "x" + halfZ;
+	if (!cache[name]) {
+		cache[name] = squareRings(bandRings(halfX, halfZ, [
+			{ d: 3, alpha: 0 },
+			{ d: 7, alpha: 1 },
+			{ d: 30, alpha: 0.9 },
+			{ d: 55, alpha: 0.5 },
+			{ d: 80, alpha: 0 },
+		]), 55, true);
+	}
+	return cache[name];
+}
+
+/**
+ * Hot rim along the moat's inner edge, so the board's boundary reads as a line not to cross
+ */
+function moatEdge(halfX, halfZ) {
+	var name = "moatEdge" + halfX + "x" + halfZ;
+	if (!cache[name]) {
+		cache[name] = squareRings(bandRings(halfX, halfZ, [
+			{ d: 2, alpha: 0 },
+			{ d: 4.5, alpha: 1 },
+			{ d: 6, alpha: 1 },
+			{ d: 11, alpha: 0 },
+		]), 55, true);
+	}
+	return cache[name];
+}
+
+function bandRings(halfX, halfZ, steps) {
+	return steps.map(function (step) {
+		return { halfX: halfX + step.d, halfZ: halfZ + step.d, alpha: step.alpha };
+	});
 }
 
 /**
@@ -253,4 +296,6 @@ module.exports = {
 	beam: beam,
 	ring: ring,
 	strip: strip,
+	moat: moat,
+	moatEdge: moatEdge,
 };

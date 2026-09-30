@@ -43,10 +43,11 @@ var Config = {
 	GOAL_RADIUS: 25,
 	GOAL_DWELL: 0.3,
 
-	// Leaving the board during play costs a life and locks the goal until the player is back on the
-	// yellow row, so walking around the outside can't reach the goal. The margin lets people lean over the edge
-	OFF_BOARD_MARGIN: 20,
-	OFF_BOARD_DWELL: 0.4,
+	// Leaving the board during play costs a life (with one life, it ends the round) and locks the goal until the
+	// player is back on the yellow row, so walking around the outside can't reach the goal. The margin is how far
+	// past a tile's outer edge the body estimate may stray: enough for a heel on the edge, not a path around it
+	OFF_BOARD_MARGIN: 10,
+	OFF_BOARD_DWELL: 0.3,
 	TILE_HALF: 25,
 
 	// Mines also count when the body estimate stays in a mine's cell, so nobody can slip past along the gaps
@@ -107,6 +108,7 @@ var studyCap = 12;
 var boardBounds = null;
 var returningToStart = false;
 var offBoardTime = 0;
+var enteredBoard = false; // the back edge only counts once the player has been on the board this round
 
 // Gate and dwell timers. The gate arms once per placement (see updateGate)
 var gateArmed = false;
@@ -196,6 +198,7 @@ function startRound() {
 	goalDwell = 0;
 	returningToStart = false;
 	offBoardTime = 0;
+	enteredBoard = false;
 	mineCellKey = null;
 	mineCellTime = 0;
 	boardBounds = computeBoardBounds();
@@ -476,10 +479,12 @@ function updateOffBoard(head, dt) {
 		return;
 	}
 
-	// No test behind the start row: the marker stands there (so the study timer can start the walk with the
-	// player on it), and nothing behind the yellow row leads to the goal. The sides still catch walking around
+	// The back edge (behind the start row) only counts once the player has been on the board: the marker stands
+	// behind it, and the study timer can start the walk with the player still on the marker
 	var margin = Config.OFF_BOARD_MARGIN;
-	var outside = head.x < boardBounds.minX - margin || head.x > boardBounds.maxX + margin || head.z < boardBounds.minZ - margin;
+	var inside = head.x >= boardBounds.minX && head.x <= boardBounds.maxX && head.z >= boardBounds.minZ && head.z <= boardBounds.maxZ;
+	if (inside) enteredBoard = true;
+	var outside = head.x < boardBounds.minX - margin || head.x > boardBounds.maxX + margin || head.z < boardBounds.minZ - margin || (enteredBoard && head.z > boardBounds.maxZ + margin);
 
 	if (outside) {
 		offBoardTime += dt;

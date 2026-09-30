@@ -4,8 +4,9 @@
 //
 // Per tile: a glowing frame (plate), a textured lava core that grows during the warning and flares
 // on landing, and a tapered flame tongue that turns to face the player. Shared: the safe beacon
-// (ground ring, light pillar, rising rings), a shock ring on the floor, and a burn glow along the bottom
-// of the view. Warm squares and tongues mean danger; cool circles and a thin pillar mean safety.
+// (ground ring, light pillar, rising rings), a shock ring on the floor, a burn glow along the bottom
+// of the view, and a lava moat around the board. Tiles marked molten stay lava between waves.
+// Warm squares and tongues mean danger; cool circles and a thin pillar mean safety.
 // Everything is built once and reused across sessions; nothing is created or destroyed per wave.
 
 var Helpers = require("./ModeHelpers");
@@ -38,6 +39,14 @@ var FX = {
 	VIGNETTE_ATTACK: 0.06,
 	VIGNETTE_RELEASE: 0.35,
 	VIGNETTE_BRIGHTNESS: 0.45,
+
+	MOAT_LIFT: 0.4,
+	MOAT_LEVEL: 0.5,
+	MOAT_EDGE_LEVEL: 0.75,
+	MOAT_FLARE_TIME: 1.0, // the moat brightens when the lava lands, then settles back
+	MOLTEN_RIM_LEVEL: 0.8,
+	MOLTEN_CORE_LEVEL: 0.6,
+	MOLTEN_FADE: 0.4,
 };
 
 // Additive tints (rgb scaled by an intensity; alpha stays 1)
@@ -54,6 +63,10 @@ var TINT = {
 	OUT_CORE: new vec3(1.0, 0.45, 0.2),
 	BURN: new vec3(1.0, 0.3, 0.06),
 	SHOCK: new vec3(1.0, 0.5, 0.1),
+	MOLTEN_RIM: new vec3(1.0, 0.4, 0.1),
+	MOLTEN_CORE: new vec3(1.0, 0.55, 0.25),
+	MOAT: new vec3(1.0, 0.55, 0.2),
+	MOAT_EDGE: new vec3(1.0, 0.45, 0.1),
 };
 
 var IDLE_LEVEL = 0.45;
@@ -93,6 +106,7 @@ function create(options) {
 	var scrollers = [];
 	var warnTiles = [];
 	var flareTime = 0;
+	var moatFlareTime = 0;
 	var vignetteTime = -1;
 	var safe = { tile: null, withBeam: false, start: 0 };
 	var shock = { active: false, time: 0, duration: 0, from: 0, to: 0, color: null };
@@ -112,6 +126,9 @@ function create(options) {
 	var shockRing = glow("LavaShockRing", Meshes.ring());
 	var vignette = Helpers.createMeshVisual(camera, "LavaBurnGlow", Meshes.strip(), options.glowMaterial);
 	vignette.object.getTransform().setLocalPosition(FX.VIGNETTE_POSITION);
+	// The moat's meshes depend on the board size, so they're assigned in place()
+	var moat = glowCard("LavaMoat", Meshes.ring(), options.lavaTexture, new vec2(1, 1), new vec2(0.006, 0.01));
+	var moatEdge = glow("LavaMoatEdge", Meshes.ring());
 
 	function buildTile(x, z) {
 		var name = "Lava" + x + z;
@@ -135,6 +152,7 @@ function create(options) {
 			flameDelay: 0,
 			flamePhase: [0, 0, 0],
 			flameBase: null,
+			molten: false, // stays lava between waves (the crumbling floor)
 		};
 		return tile;
 	}
@@ -234,6 +252,19 @@ function create(options) {
 	function setPlate(tile, color, duration) {
 		tile.plateQueue = [];
 		tweenTo(tile.plateColor, color, duration);
+	}
+
+	/**
+	 * A tile's look between waves: idle, or lava if it has crumbled
+	 */
+	function restLook(tile, duration) {
+		if (tile.molten) {
+			setPlate(tile, TINT.MOLTEN_RIM.uniformScale(FX.MOLTEN_RIM_LEVEL), duration);
+			setCore(tile, 1, TINT.MOLTEN_CORE.uniformScale(FX.MOLTEN_CORE_LEVEL), duration);
+		} else {
+			setPlate(tile, TINT.IDLE.uniformScale(IDLE_LEVEL), duration);
+			fadeCore(tile, duration);
+		}
 	}
 
 	function queuePlate(tile, delay, color, duration) {
@@ -461,12 +492,37 @@ function create(options) {
 			tile.plate.object.enabled = true;
 		});
 
+		placeMoat();
+
 		groundRing.object.getTransform().setWorldRotation(gridRotation);
 		groundRing.object.getTransform().setWorldScale(new vec3(FX.GROUND_RING_RADIUS, 1, FX.GROUND_RING_RADIUS));
 		for (var i = 0; i < riseRings.length; i++) {
 			riseRings[i].object.getTransform().setWorldRotation(gridRotation);
 		}
 		placed = true;
+	}
+
+	/**
+	 * Surrounds the board with the lava moat, sized from the tile centres
+	 */
+	function placeMoat() {
+		var first = tiles[0][0].centre;
+		var last = tiles[rows - 1][columns - 1].centre;
+		var centre = new vec3((first.x + last.x) / 2, 0, (first.z + last.z) / 2);
+		// Tile edges: half the centre-to-centre span plus half a tile (the plate's outer edge)
+		var halfX = Math.round(Math.abs(last.x - first.x) / 2 + 25);
+		var halfZ = Math.round(Math.abs(last.z - first.z) / 2 + 25);
+		moat.visual.mesh = Meshes.moat(halfX, halfZ);
+		moatEdge.visual.mesh = Meshes.moatEdge(halfX, halfZ);
+
+		var parts = [moat, moatEdge];
+		for (var i = 0; i < parts.length; i++) {
+			var transform = parts[i].object.getTransform();
+			transform.setWorldPosition(toWorld(centre, FX.MOAT_LIFT));
+			transform.setWorldRotation(gridRotation);
+			parts[i].object.enabled = true;
+		}
+		moatFlareTime = 0;
 	}
 
 	function update(dt) {
@@ -486,7 +542,15 @@ function create(options) {
 		updateSafe(head, cameraWorld);
 		updateShock(dt);
 		updateVignette(dt);
+		updateMoat(dt);
 		updateScroll();
+	}
+
+	function updateMoat(dt) {
+		moatFlareTime = Math.max(0, moatFlareTime - dt);
+		var flare = 1 + 0.6 * (moatFlareTime / FX.MOAT_FLARE_TIME);
+		setColor(moat, TINT.MOAT, FX.MOAT_LEVEL * flare);
+		setColor(moatEdge, TINT.MOAT_EDGE, FX.MOAT_EDGE_LEVEL * flare);
 	}
 
 	/**
@@ -496,8 +560,7 @@ function create(options) {
 		var fade = duration === undefined ? 0.15 : duration;
 		warnTiles = [];
 		forEachTile(function (tile) {
-			setPlate(tile, TINT.IDLE.uniformScale(IDLE_LEVEL), fade);
-			fadeCore(tile, fade);
+			restLook(tile, fade);
 			sink(tile);
 		});
 	}
@@ -506,10 +569,13 @@ function create(options) {
 	 * Plate looks the controller sets directly: "idle", "settle" (the tile that counts while settling) or "safe"
 	 */
 	function setPlateLook(x, z, look, duration) {
-		var color = TINT.IDLE.uniformScale(IDLE_LEVEL);
-		if (look === "settle") color = TINT.SAFE.uniformScale(0.45);
-		if (look === "safe") color = TINT.SAFE;
-		setPlate(tiles[z][x], color, duration === undefined ? 0.15 : duration);
+		var tile = tiles[z][x];
+		var fade = duration === undefined ? 0.15 : duration;
+		if (look === "idle") {
+			restLook(tile, fade);
+			return;
+		}
+		setPlate(tile, look === "settle" ? TINT.SAFE.uniformScale(0.45) : TINT.SAFE, fade);
 	}
 
 	/**
@@ -580,6 +646,7 @@ function create(options) {
 	 */
 	function igniteTiles(list, origin) {
 		warnTiles = [];
+		moatFlareTime = FX.MOAT_FLARE_TIME;
 		for (var i = 0; i < list.length; i++) {
 			var tile = tiles[list[i].z][list[i].x];
 			setPlate(tile, TINT.LAVA_RIM, 0);
@@ -595,8 +662,31 @@ function create(options) {
 		hideSafe();
 		forEachTile(function (tile) {
 			sink(tile);
+			if (tile.molten) {
+				restLook(tile, duration);
+				return;
+			}
 			if (tile.coreOn) setCore(tile, tile.coreScale, TINT.CRUST.uniformScale(0.12), duration, true);
 			setPlate(tile, TINT.IDLE.uniformScale(IDLE_LEVEL), 0.3);
+		});
+	}
+
+	/**
+	 * Crumbles tiles: they stay lava until clearMolten
+	 * @param {Array} list - [{x, z}]
+	 */
+	function setMolten(list) {
+		for (var i = 0; i < list.length; i++) {
+			var tile = tiles[list[i].z][list[i].x];
+			if (tile.molten) continue;
+			tile.molten = true;
+			restLook(tile, FX.MOLTEN_FADE);
+		}
+	}
+
+	function clearMolten() {
+		forEachTile(function (tile) {
+			tile.molten = false;
 		});
 	}
 
@@ -637,6 +727,7 @@ function create(options) {
 	function clearRipple(origin) {
 		hideSafe();
 		forEachTile(function (tile) {
+			tile.molten = false;
 			sink(tile);
 			fadeCore(tile, 0.3);
 			tile.plateQueue = [];
@@ -664,6 +755,7 @@ function create(options) {
 		warnTiles = [];
 		forEachTile(function (tile) {
 			tile.plateQueue = [];
+			tile.molten = false;
 			tile.plate.object.enabled = false;
 			coreOff(tile);
 			tile.flameState = Flame.OFF;
@@ -675,6 +767,8 @@ function create(options) {
 		vignetteTime = -1;
 		vignette.object.enabled = false;
 		flareTime = 0;
+		moat.object.enabled = false;
+		moatEdge.object.enabled = false;
 		placed = false;
 	}
 
@@ -696,6 +790,8 @@ function create(options) {
 		goSweep: goSweep,
 		clearRipple: clearRipple,
 		burnedOut: burnedOut,
+		setMolten: setMolten,
+		clearMolten: clearMolten,
 		hideAll: hideAll,
 	};
 }
