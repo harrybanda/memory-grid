@@ -2,9 +2,12 @@
 // Suggests candidates:         node tools/minefield-layouts.js suggest <mines> <minMoves>
 // Board is 4 columns (x 0-3) by 4 rows (z 0-3). The player steps on from the start marker onto any safe tile
 // of row 3 (the near row, which can hold mines too); the goal is in row 0.
-// Rules: every layout (and its left-right mirror) must be solvable with 8-neighbour moves, the shortest
-// route (counting the step onto the board) must be at least minMoves, the straight walk down column 2
-// (straight ahead of the start marker) must hit a mine, and at least two near-row tiles must be safe to enter.
+// Rules: every layout (and its left-right mirror) must be solvable, the shortest route (counting the step onto
+// the board) must be at least minMoves, the straight walk down column 2 (straight ahead of the start marker)
+// must hit a mine, and at least two near-row tiles must be safe to enter.
+// Moves: straight steps, and diagonal steps only when both tiles beside the diagonal are safe. A diagonal
+// past a mine's corner walks over that corner, where the game's mine-cell check (rightly) catches the body,
+// so a route that needs one isn't really walkable.
 var COLUMNS = 4;
 var ROWS = 4;
 var NEAR = ROWS - 1;
@@ -29,6 +32,7 @@ function shortestRoute(layout) {
 		if (p.x === layout.goal.x && p.z === layout.goal.z) return dist[p.x + "," + p.z];
 		for (var dx = -1; dx <= 1; dx++) for (var dz = -1; dz <= 1; dz++) {
 			var n = { x: p.x + dx, z: p.z + dz }, k = n.x + "," + n.z;
+			if (dx && dz && (mines[(p.x + dx) + "," + p.z] || mines[p.x + "," + (p.z + dz)])) continue; // no corner cutting
 			if ((dx || dz) && n.x >= 0 && n.x < COLUMNS && n.z >= 0 && n.z < ROWS && !mines[k] && dist[k] === undefined) {
 				dist[k] = dist[p.x + "," + p.z] + 1; queue.push(n);
 			}

@@ -57,7 +57,8 @@ var Config = {
 	// Mines also count when the body estimate stays in a mine's cell, so nobody can slip past along the gaps
 	// the tile triggers don't reach. On a side that faces another mine the cell runs to the middle of the gap
 	// (MINE_CELL_SHARED), closing the seam between the two; on a side that faces a safe tile or the board edge
-	// it stops a little inside the tile (MINE_CELL_OPEN), so the diagonal squeeze past two mine corners stays open
+	// it stops a little inside the tile (MINE_CELL_OPEN). Layouts never need a diagonal past a mine's corner
+	// (tools/minefield-layouts.js forbids it), so every route can be walked tile centre to tile centre
 	MINE_CELL_SHARED: 27.5,
 	MINE_CELL_OPEN: 20,
 	MINE_CELL_DWELL: 0.2, // Seconds in the cell before it counts (filters a brief lean)
