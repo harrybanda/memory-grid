@@ -16,6 +16,7 @@
     - !<own> 395ce94e-cdbb-4985-a151-91f3da4d54d8
     - !<own> f3638ed4-844d-4e2f-b006-81a17cc99747
     - !<own> 69c1c908-2d56-467c-bab3-a0eca14e450d
+    - !<own> de71428c-bc2e-4e1f-9e6c-6f0732da73a4
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       - |
@@ -2123,8 +2124,6 @@
   ScriptInputs:
     "":
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
-      boxMesh: !<reference.RenderMesh> e542623c-1432-4bfa-881d-a28905bd9e57
-      boxMaterial: !<reference.Material> c87b13d2-8f5b-436f-8435-c4c1d2d1da34
   ScriptTypes:
     "":
       {}
@@ -3866,6 +3865,22 @@
     CapitalizationOverride: None
   DepthTest: false
   TwoSided: false
+- !<ScriptComponent/950d4b6b-6d76-4dbb-9281-3c3b044e9b13>
+  PrefabRemaps:
+    []
+  Name: VisualStyle
+  Enabled: true
+  ScriptAsset: !<reference> 170898c2-6a69-44fd-9e95-79b515c423ef
+  ScriptInputsDefault:
+    {}
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      glowMaterial: !<reference.Material> cf58a506-5bcc-4880-98a4-05dc77a28bff
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/95e75362-a3b6-4e6c-ae2d-27aaed65c700>
   PrefabRemaps:
     []
@@ -5535,6 +5550,21 @@
     - !<own> e89dc030-fecb-4a39-9be7-f99c2ddd0c9a
   Components:
     []
+- !<SceneObject/de71428c-bc2e-4e1f-9e6c-6f0732da73a4>
+  PrefabRemaps:
+    []
+  Name: VisualStyle
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 950d4b6b-6d76-4dbb-9281-3c3b044e9b13
 - !<SceneObject/dfa67961-d696-4ef3-9fda-0c863bc48c21>
   PrefabRemaps:
     []

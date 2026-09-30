@@ -3,41 +3,46 @@
 // Each correct tune adds a note; reaching a level's target length clears the level.
 // Lives in the scene (not the per-session Surface prefab); PlacementBridge routes to it.
 //
-// Round flow: WAIT_ON_START (stand on the yellow pad) -> PLAYBACK (pads flash with notes, mirrored on a
-// floating "remote" at eye level, since the pads at your feet are mostly below the display) -> INPUT
-// (step the pads in order) -> RESULT (tune done, level clear, or wrong pad) -> WAIT_ON_START.
+// Round flow: WAIT_ON_HOME (stand on the white middle tile) -> PLAYBACK (pads flash with notes, mirrored on
+// a small copy of the board that floats in front of the player, since the pads at your feet are mostly
+// below the display) -> INPUT (step the pads in order, from the middle) -> RESULT (tune done, level clear,
+// or wrong pad) -> WAIT_ON_HOME. One wrong pad ends the tune.
+//
+// The mini board follows the player's head (lazily, so it doesn't swim), keeping the floor's layout: its far
+// pad is always the floor's far pad, whichever way the player faces. A dot on it shows where they stand.
 //
 // Input is polled from a body estimate (the head pulled back when looking down, ModeHelpers.bodyLocal)
-// rather than the tile triggers: pads are at least 78cm apart, so a generous 25cm radius can't reach a
-// second pad. The tune only plays once the player is on yellow and facing the remote, and that yellow
-// step counts as the first note.
+// rather than the tile triggers: pads are 55cm from the middle and at least 78cm apart, so a 25cm radius
+// can't reach a second pad.
 
 // @input SceneObject cameraObject {"label": "Camera", "hint": "The Camera Object with Device Tracking, for head position"}
-// @input Asset.RenderMesh boxMesh {"label": "Box Mesh", "hint": "A unit box mesh, used to build the floating remote"}
-// @input Asset.Material boxMaterial {"label": "Box Material", "hint": "An unlit material with a baseColor (cloned per light)"}
 
-var Constants = require("../Utils/Constants");
 var Helpers = require("./ModeHelpers");
+var GlowMeshes = require("../Visuals/GlowMeshes");
 
 var TAG = "TonePads";
 
-// Board: 3 x 3. Pads sit on the four edge-middle tiles in a diamond; the other five tiles are ignored
+// Board: 3 x 3. Pads sit on the four edge-middle tiles in a diamond around the home tile; corners are unused
 var ROWS = 3;
 var COLUMNS = 3;
+var HOME = { x: 1, z: 1 };
 
-// Pad ids index PADS. S is the near pad on Classic's start tile, N is the far pad
+// Pad ids index PADS. S is the near pad, N the far pad
 var S = 0;
 var W = 1;
 var N = 2;
 var E = 3;
 
 var PADS = [
-	{ name: "S", x: 1, z: 2, note: 1, color: Constants.GridConfig.COLORS.TILE_START },
+	{ name: "S", x: 1, z: 2, note: 1, color: new vec4(0.25, 1.0, 0.45, 1.0) },
 	{ name: "W", x: 0, z: 1, note: 5, color: new vec4(0.1, 0.85, 1.0, 1.0) },
 	{ name: "N", x: 1, z: 0, note: 8, color: new vec4(0.95, 0.25, 0.85, 1.0) },
 	{ name: "E", x: 2, z: 1, note: 13, color: new vec4(1.0, 0.55, 0.1, 1.0) },
 ];
 // step_01/05/08/13 are C#5, F5, G#5 and C#6, so any order of notes sounds consonant
+
+var HOME_COLOR = new vec4(1.0, 1.0, 1.0, 1.0);
+var WRONG_COLOR = new vec4(1.0, 0.2, 0.2, 1.0);
 
 // Three levels for testing. Each starts at startLength notes and clears at targetLength
 var LEVELS = [
@@ -49,28 +54,40 @@ var LEVELS = [
 var Config = {
 	PAD_RADIUS: 25, // Body within this distance of a pad centre enters it (cm)
 	PAD_RELEASE: 32, // Body must go beyond this distance before the same pad can register again
-	START_RADIUS: 35, // Standing anywhere on the yellow tile counts for the start (the nearest other pad is ~78cm away)
-	START_DWELL: 0.5, // Seconds on the yellow pad, facing the remote, before the tune plays
-	FACING_DEGREES: 35, // How far the view can be off the remote and still count as facing it
-	MAX_LOOK_DOWN: 0.6, // Looking further down than this (about 37 degrees) can't see the eye-level remote
+	HOME_RADIUS: 22, // Body within this distance of the middle tile's centre is home
+	HOME_DWELL: 0.5, // Seconds at home before the tune plays
 	IDLE_REPLAY: 10, // Seconds without progress before the tune replays
 	CHIME_DELAY: 0.8, // Step notes swell to their peak at ~0.4s; wait before the chime replaces them (one shared SFX channel)
+
 	PAD_IDLE_ALPHA: 0.45,
 	PAD_LIT_ALPHA: 1.0,
 	OFF_TILE_ALPHA: 0.08,
+	HOME_WAITING_ALPHA: 0.7, // the middle tile glows while it's waiting for the player
+	HOME_QUIET_ALPHA: 0.2,
 
-	// Floating remote, in grid-local cm: about 1m beyond the far edge at eye level, tilted back
-	// so its top reads as "far" like the floor diamond
-	REMOTE_POSITION: new vec3(0, 140, -210),
+	// Mini board: a tabletop copy of the floor this far ahead of the eyes and this far below them (cm),
+	// tilted up toward the player so it reads at a glance
+	REMOTE_DISTANCE: 70,
+	REMOTE_DROP: 30,
+	REMOTE_SCALE: 0.14, // a 55cm tile becomes ~8cm
 	REMOTE_TILT_DEGREES: 40,
-	REMOTE_SPACING: 22,
-	REMOTE_LIGHT_SIZE: new vec3(18, 18, 2),
-	REMOTE_IDLE_ALPHA: 0.25,
+	REMOTE_FOLLOW: 4, // how quickly it catches up with the head (per second)
+	REMOTE_IDLE: 0.3, // brightness of unlit pads on the mini board
+	// Looking down at the real pads hides the mini board (it would sit between the eyes and the floor);
+	// two thresholds so it doesn't flicker at the edge
+	REMOTE_HIDE_LOOK_DOWN: 0.75,
+	REMOTE_SHOW_LOOK_DOWN: 0.6,
+	YOU_DOT_RADIUS: 2.2, // cm on the mini board
+
+	HOME_RING_RADIUS: 17, // the floor ring on the middle tile while waiting
+	RIPPLE_TIME: 0.5,
+	RIPPLE_FROM: 16,
+	RIPPLE_TO: 42,
 };
 
 var Phase = {
 	IDLE: "idle",
-	WAIT_ON_START: "wait_on_start",
+	WAIT_ON_HOME: "wait_on_home",
 	PLAYBACK: "playback",
 	INPUT: "input",
 	RESULT: "result",
@@ -78,26 +95,26 @@ var Phase = {
 
 var clock = Helpers.createRoundClock(script);
 var phase = Phase.IDLE;
+var now = 0;
 
 var GridManager = null;
 var padCentres = [];
+var homeCentre = null;
 
 // Session state
 var levelIndex = 0;
 var best = 0;
-var isFirstTune = true;
 
 // Tune state
 var tune = [];
 var inputIndex = 0;
 var lastAcceptedPad = -1;
 var padInside = [false, false, false, false];
-var startDwell = 0;
-var waitHint; // last hint shown while waiting on yellow (undefined forces the first one)
+var homeDwell = 0;
 var idleTime = 0;
 
-// Remote: a root object with one light per pad, built once and reused
-var remote = null;
+// Visuals, built once and reused across sessions
+var visuals = null;
 
 /**
  * Called by PlacementBridge when this mode is selected and the floor is placed
@@ -118,13 +135,14 @@ function onGridPlaced(gridOrigin, floorY) {
 	padCentres = PADS.map(function (pad) {
 		return Helpers.tileLocal(GridManager, pad.x, pad.z);
 	});
+	homeCentre = Helpers.tileLocal(GridManager, HOME.x, HOME.z);
 
-	placeRemote();
+	buildVisuals();
+	placeVisuals();
 	paintBoard();
 
 	levelIndex = 0;
 	best = 0;
-	isFirstTune = true;
 	startLevel();
 }
 
@@ -133,43 +151,23 @@ function onGridPlaced(gridOrigin, floorY) {
 // ============================================
 
 function startLevel() {
-	var level = LEVELS[levelIndex];
-	tune = generateTune(level.startLength, isFirstTune);
-	isFirstTune = false;
-	enterWaitOnStart();
+	tune = generateTune(LEVELS[levelIndex].startLength);
+	enterWaitOnHome();
 }
 
-function enterWaitOnStart() {
-	setPhase(Phase.WAIT_ON_START);
-	startDwell = 0;
-	waitHint = null;
+function enterWaitOnHome() {
+	setPhase(Phase.WAIT_ON_HOME);
+	homeDwell = 0;
 	paintBoard();
-	setPadLit(S, true);
-	showWaitHint("");
-}
-
-/**
- * Shows why the tune hasn't started yet: not on yellow, not facing the remote, or looking down
- * @param {string} problem - "" (not on yellow), "turn", "look up", or null (ready)
- */
-function showWaitHint(problem) {
-	if (problem === waitHint) return;
-	waitHint = problem;
-	if (problem === "turn") {
-		Helpers.showHud("TURN TO FACE THE LIGHTS", 0);
-	} else if (problem === "look up") {
-		Helpers.showHud("LOOK UP AT THE LIGHTS", 0);
-	} else if (problem === null) {
-		Helpers.showHud("GET READY...", 0);
-	} else {
-		Helpers.showHud("LEVEL " + (levelIndex + 1) + " · " + tune.length + " NOTES\nSTAND ON YELLOW, FACE THE LIGHTS", 0);
-	}
+	setHome(true);
+	Helpers.showHud("LEVEL " + (levelIndex + 1) + " · " + tune.length + " NOTES\nSTAND IN THE MIDDLE", 0);
 }
 
 function startPlayback() {
 	setPhase(Phase.PLAYBACK);
 	clock.invalidate();
 	paintBoard();
+	setHome(false);
 	Helpers.showHud("WATCH", 0);
 
 	var level = LEVELS[levelIndex];
@@ -194,19 +192,16 @@ function schedulePlaybackNote(pad, at, duration) {
 function startInput() {
 	setPhase(Phase.INPUT);
 	idleTime = 0;
+	inputIndex = 0;
+	lastAcceptedPad = -1;
 
-	// The tune only played after the player stood on yellow, and every tune starts on yellow, so that note
-	// is already played. It's counted silently: a note on the beat would sound like part of the tune.
-	// Pads are seeded from where the player is now, so a pad they drifted onto during playback needs a fresh
-	// step rather than failing at once; the second note is left clear so stepping onto it early still counts
+	// Pads are seeded from where the player is now (normally home, touching none), so a pad they drifted
+	// onto during playback needs a fresh step rather than counting or failing at once
 	var body = Helpers.bodyLocal(GridManager, script.cameraObject);
 	for (var p = 0; p < PADS.length; p++) {
 		padInside[p] = !!body && Helpers.horizontalDistance(body, padCentres[p]) <= Config.PAD_RELEASE;
 	}
-	padInside[tune[1]] = false;
-	inputIndex = 1;
-	lastAcceptedPad = tune[0];
-	Helpers.showHud("YOUR TURN · 1/" + tune.length, 0);
+	Helpers.showHud("YOUR TURN · 0/" + tune.length, 0);
 }
 
 function onPadEntered(pad) {
@@ -226,6 +221,7 @@ function acceptPad(pad) {
 	idleTime = 0;
 
 	flashPad(pad, 0.4);
+	ripple(PADS[pad], PADS[pad].color);
 	Helpers.playStep(PADS[pad].note);
 	Helpers.showHud("YOUR TURN · " + inputIndex + "/" + tune.length, 0);
 
@@ -249,7 +245,7 @@ function tuneComplete() {
 
 	tune.push(nextNote(tune[tune.length - 1]));
 	Helpers.showHud("NICE!\nNEXT: " + tune.length + " NOTES", 0);
-	clock.later(1.5, enterWaitOnStart);
+	clock.later(1.5, enterWaitOnHome);
 }
 
 function levelComplete() {
@@ -268,7 +264,8 @@ function wrongPad(pad) {
 	Helpers.playSfx("playError");
 
 	var expected = tune[inputIndex];
-	setPadColor(pad, new vec4(0.5, 0.5, 0.5, 0.6));
+	setPadColor(pad, Helpers.withAlpha(WRONG_COLOR, 0.8));
+	ripple(PADS[pad], WRONG_COLOR);
 	blinkPad(expected, 2);
 
 	Helpers.showHud("WRONG PAD\nBEST " + best + " NOTES", 0);
@@ -283,22 +280,21 @@ function wrongPad(pad) {
 function update() {
 	if (!clock.isActive() || !GridManager) return;
 
+	var dt = getDeltaTime();
+	now += dt;
+
 	var body = Helpers.bodyLocal(GridManager, script.cameraObject);
+	updateVisuals(dt, body);
 	if (!body) return;
 
-	var dt = getDeltaTime();
-
-	if (phase === Phase.WAIT_ON_START) {
-		var onYellow = Helpers.horizontalDistance(body, padCentres[S]) <= Config.START_RADIUS;
-		var problem = onYellow ? facingProblem(body) : "";
-		showWaitHint(problem);
-		if (onYellow && problem === null) {
-			startDwell += dt;
-			if (startDwell >= Config.START_DWELL) {
+	if (phase === Phase.WAIT_ON_HOME) {
+		if (Helpers.horizontalDistance(body, homeCentre) <= Config.HOME_RADIUS) {
+			homeDwell += dt;
+			if (homeDwell >= Config.HOME_DWELL) {
 				startPlayback();
 			}
 		} else {
-			startDwell = 0;
+			homeDwell = 0;
 		}
 	} else if (phase === Phase.INPUT) {
 		updatePads(body);
@@ -306,29 +302,10 @@ function update() {
 		idleTime += dt;
 		if (phase === Phase.INPUT && idleTime >= Config.IDLE_REPLAY) {
 			Helpers.showHud("LISTEN AGAIN", 0);
-			clock.later(1.0, enterWaitOnStart);
+			clock.later(1.0, enterWaitOnHome);
 			setPhase(Phase.RESULT);
 		}
 	}
-}
-
-/**
- * Why the player can't see the remote yet: "turn" (facing away), "look up" (looking at the floor), or null.
- * The tune never plays behind the player or while they're looking at their feet
- */
-function facingProblem(body) {
-	var view = Helpers.viewLocal(GridManager, script.cameraObject);
-	if (!view) return null;
-	var dx = Config.REMOTE_POSITION.x - body.x;
-	var dz = Config.REMOTE_POSITION.z - body.z;
-	var length = Math.sqrt(dx * dx + dz * dz);
-	if (length >= 1 && (view.x * dx + view.z * dz) / length < Math.cos((Config.FACING_DEGREES * Math.PI) / 180)) {
-		return "turn";
-	}
-	if (view.down > Config.MAX_LOOK_DOWN) {
-		return "look up";
-	}
-	return null;
 }
 
 /**
@@ -353,30 +330,21 @@ function updatePads(body) {
 // ============================================
 
 /**
- * Every tune starts on S. The very first tune only moves forward (S, then W or E, then N)
+ * A tune of random pads, never the same pad twice in a row. The player walks from the middle, so any
+ * pad can come first and crossing from one side to the other passes over home
  */
-function generateTune(length, forwardOnly) {
-	var result = [S];
-	if (forwardOnly && length >= 3) {
-		result.push(Math.random() < 0.5 ? W : E);
-		result.push(N);
-	}
+function generateTune(length) {
+	var result = [Math.floor(Math.random() * PADS.length)];
 	while (result.length < length) {
 		result.push(nextNote(result[result.length - 1]));
 	}
 	return result;
 }
 
-/**
- * A random next note: never the same pad twice in a row, and never straight between N and S
- * (a 110cm walk, often backward)
- */
 function nextNote(previous) {
 	var options = [];
 	for (var p = 0; p < PADS.length; p++) {
-		if (p === previous) continue;
-		if ((previous === N && p === S) || (previous === S && p === N)) continue;
-		options.push(p);
+		if (p !== previous) options.push(p);
 	}
 	return Helpers.randomItem(options);
 }
@@ -385,22 +353,189 @@ function nextNote(previous) {
 // VISUALS
 // ============================================
 
+/**
+ * Floor tiles are drawn by the grid (glow tiles); this mode adds the home ring, ripples and the mini board
+ */
+function buildVisuals() {
+	if (visuals) return;
+	var style = global.PathFinder && global.PathFinder.VisualStyle;
+	if (!style || !style.glowMaterial) {
+		print("TonePadsController: No VisualStyle in the scene; the mini board and effects are off");
+		return;
+	}
+	var material = style.glowMaterial;
+	var parent = script.getSceneObject();
+
+	visuals = {
+		homeRing: GlowMeshes.createVisual(parent, "TonePadsHomeRing", GlowMeshes.ring(), material),
+		ripples: [],
+		rippleNext: 0,
+		remote: global.scene.createSceneObject("TonePadsRemote"),
+		remoteTiles: [],
+		you: null,
+		remotePosition: null,
+		remoteFlat: null,
+	};
+	for (var i = 0; i < 3; i++) {
+		visuals.ripples.push({ visual: GlowMeshes.createVisual(parent, "TonePadsRipple" + i, GlowMeshes.ring(), material), time: -1, color: null });
+	}
+
+	visuals.remote.setParent(parent);
+	for (var z = 0; z < ROWS; z++) {
+		visuals.remoteTiles[z] = [];
+		for (var x = 0; x < COLUMNS; x++) {
+			var tile = GlowMeshes.createVisual(visuals.remote, "MiniTile" + x + z, GlowMeshes.tile(), material);
+			var transform = tile.object.getTransform();
+			transform.setLocalPosition(new vec3((x - HOME.x) * 55 * Config.REMOTE_SCALE, 0, (z - HOME.z) * 55 * Config.REMOTE_SCALE));
+			transform.setLocalScale(new vec3(Config.REMOTE_SCALE, 1, Config.REMOTE_SCALE));
+			tile.object.enabled = true;
+			visuals.remoteTiles[z][x] = tile;
+		}
+	}
+	visuals.you = GlowMeshes.createVisual(visuals.remote, "MiniYou", GlowMeshes.ring(), material);
+	visuals.you.object.getTransform().setLocalScale(new vec3(Config.YOU_DOT_RADIUS, 1, Config.YOU_DOT_RADIUS));
+	setGlow(visuals.you, HOME_COLOR, 1.0);
+}
+
+/**
+ * Lays the floor effects onto this session's grid and snaps the mini board in front of the player
+ */
+function placeVisuals() {
+	if (!visuals) return;
+	var rotation = GridManager.getGridParent().getTransform().getWorldRotation();
+	visuals.homeRing.object.getTransform().setWorldPosition(Helpers.gridToWorldPoint(GridManager, new vec3(homeCentre.x, 1.2, homeCentre.z)));
+	visuals.homeRing.object.getTransform().setWorldRotation(rotation);
+	visuals.homeRing.object.getTransform().setWorldScale(new vec3(Config.HOME_RING_RADIUS, 1, Config.HOME_RING_RADIUS));
+	for (var i = 0; i < visuals.ripples.length; i++) {
+		visuals.ripples[i].visual.object.getTransform().setWorldRotation(rotation);
+		visuals.ripples[i].time = -1;
+		visuals.ripples[i].visual.object.enabled = false;
+	}
+	visuals.remotePosition = null;
+	visuals.remote.enabled = true;
+}
+
+/**
+ * Per frame: the mini board follows the head, the you-dot follows the body, the home ring breathes and
+ * ripples expand
+ */
+function updateVisuals(dt, body) {
+	if (!visuals) return;
+
+	updateRemote(dt, body);
+
+	if (visuals.homeRing.object.enabled) {
+		setGlow(visuals.homeRing, HOME_COLOR, 0.55 + 0.25 * Math.sin(now * Math.PI * 2 * 0.8));
+	}
+
+	for (var i = 0; i < visuals.ripples.length; i++) {
+		var ripple = visuals.ripples[i];
+		if (ripple.time < 0) continue;
+		ripple.time += dt;
+		var t = ripple.time / Config.RIPPLE_TIME;
+		if (t >= 1) {
+			ripple.time = -1;
+			ripple.visual.object.enabled = false;
+			continue;
+		}
+		var radius = Config.RIPPLE_FROM + (Config.RIPPLE_TO - Config.RIPPLE_FROM) * (1 - (1 - t) * (1 - t));
+		ripple.visual.object.getTransform().setWorldScale(new vec3(radius, 1, radius));
+		setGlow(ripple.visual, ripple.color, 0.9 * (1 - t));
+	}
+}
+
+/**
+ * Keeps the mini board ahead of the eyes and a little below them, following the head's heading lazily.
+ * Its layout keeps the floor's orientation; only the tilt toward the player turns with the head
+ */
+function updateRemote(dt, body) {
+	var gridTransform = GridManager.getGridParent().getTransform();
+	var up = gridTransform.up.normalize();
+	var camera = script.cameraObject.getTransform();
+	var eye = camera.getWorldPosition();
+	var view = camera.forward.uniformScale(-1); // the camera looks along -forward
+	var flat = view.sub(up.uniformScale(view.dot(up)));
+	if (flat.length < 0.05) {
+		flat = visuals.remoteFlat || gridTransform.forward.uniformScale(-1);
+	}
+	flat = flat.normalize();
+
+	var target = eye.add(flat.uniformScale(Config.REMOTE_DISTANCE)).sub(up.uniformScale(Config.REMOTE_DROP));
+	if (!visuals.remotePosition) {
+		visuals.remotePosition = target;
+		visuals.remoteFlat = flat;
+	} else {
+		var k = 1 - Math.exp(-dt * Config.REMOTE_FOLLOW);
+		visuals.remotePosition = vec3.lerp(visuals.remotePosition, target, k);
+		visuals.remoteFlat = vec3.lerp(visuals.remoteFlat, flat, k).normalize();
+	}
+
+	var down = -view.dot(up);
+	if (visuals.remote.enabled && down > Config.REMOTE_HIDE_LOOK_DOWN) {
+		visuals.remote.enabled = false;
+	} else if (!visuals.remote.enabled && down < Config.REMOTE_SHOW_LOOK_DOWN) {
+		visuals.remote.enabled = true;
+	}
+
+	var right = visuals.remoteFlat.cross(up).normalize();
+	var tilt = quat.angleAxis((Config.REMOTE_TILT_DEGREES * Math.PI) / 180, right);
+	var transform = visuals.remote.getTransform();
+	transform.setWorldPosition(visuals.remotePosition);
+	transform.setWorldRotation(tilt.multiply(gridTransform.getWorldRotation()));
+
+	// You are here: the body's offset from the middle tile, at the mini board's scale
+	var showYou = !!body && Math.abs(body.x - homeCentre.x) < 110 && Math.abs(body.z - homeCentre.z) < 110;
+	visuals.you.object.enabled = showYou;
+	if (showYou) {
+		visuals.you.object.getTransform().setLocalPosition(new vec3((body.x - homeCentre.x) * Config.REMOTE_SCALE, 0.5, (body.z - homeCentre.z) * Config.REMOTE_SCALE));
+	}
+}
+
+function ripple(tile, color) {
+	if (!visuals) return;
+	var slot = visuals.ripples[visuals.rippleNext];
+	visuals.rippleNext = (visuals.rippleNext + 1) % visuals.ripples.length;
+	var centre = Helpers.tileLocal(GridManager, tile.x, tile.z);
+	slot.visual.object.getTransform().setWorldPosition(Helpers.gridToWorldPoint(GridManager, new vec3(centre.x, 1.4, centre.z)));
+	slot.time = 0;
+	slot.color = color;
+	slot.visual.object.enabled = true;
+}
+
+function setGlow(visual, color, intensity) {
+	visual.pass.baseColor = new vec4(color.r * intensity, color.g * intensity, color.b * intensity, 1);
+}
+
 function paintBoard() {
 	for (var z = 0; z < ROWS; z++) {
 		for (var x = 0; x < COLUMNS; x++) {
-			GridManager.setTileColorAt(x, z, Helpers.withAlpha(Constants.GridConfig.COLORS.TILE_DEFAULT, Config.OFF_TILE_ALPHA));
+			GridManager.setTileColorAt(x, z, Helpers.withAlpha(HOME_COLOR, Config.OFF_TILE_ALPHA));
+			if (visuals) setGlow(visuals.remoteTiles[z][x], HOME_COLOR, Config.OFF_TILE_ALPHA);
 		}
 	}
+	setHome(phase === Phase.WAIT_ON_HOME);
 	for (var p = 0; p < PADS.length; p++) {
 		setPadLit(p, false);
+	}
+}
+
+/**
+ * The middle tile glows (with a breathing ring) while it waits for the player, and stays faint otherwise
+ */
+function setHome(waiting) {
+	var alpha = waiting ? Config.HOME_WAITING_ALPHA : Config.HOME_QUIET_ALPHA;
+	GridManager.setTileColorAt(HOME.x, HOME.z, Helpers.withAlpha(HOME_COLOR, alpha));
+	if (visuals) {
+		setGlow(visuals.remoteTiles[HOME.z][HOME.x], HOME_COLOR, alpha);
+		visuals.homeRing.object.enabled = waiting;
 	}
 }
 
 function setPadLit(pad, lit) {
 	var color = PADS[pad].color;
 	setPadColor(pad, Helpers.withAlpha(color, lit ? Config.PAD_LIT_ALPHA : Config.PAD_IDLE_ALPHA));
-	if (remote) {
-		Helpers.setBoxColor(remote.lights[pad], Helpers.withAlpha(color, lit ? 1.0 : Config.REMOTE_IDLE_ALPHA));
+	if (visuals) {
+		setGlow(visuals.remoteTiles[PADS[pad].z][PADS[pad].x], color, lit ? 1.0 : Config.REMOTE_IDLE);
 	}
 }
 
@@ -430,53 +565,24 @@ function blinkPad(pad, times) {
 	}
 }
 
-/**
- * Builds the floating remote once, then places it relative to this session's grid
- */
-function placeRemote() {
-	if (!script.boxMesh || !script.boxMaterial) return;
-
-	if (!remote) {
-		remote = { root: global.scene.createSceneObject("TonePadsRemote"), lights: [] };
-		remote.root.setParent(script.getSceneObject());
-
-		// Diamond layout in the remote's own plane: +Y is up (far), +X is right
-		var offsets = [
-			new vec3(0, -Config.REMOTE_SPACING, 0), // S
-			new vec3(-Config.REMOTE_SPACING, 0, 0), // W
-			new vec3(0, Config.REMOTE_SPACING, 0), // N
-			new vec3(Config.REMOTE_SPACING, 0, 0), // E
-		];
-		for (var p = 0; p < PADS.length; p++) {
-			var light = Helpers.createBox(remote.root, "Light" + PADS[p].name, script.boxMesh, script.boxMaterial);
-			var transform = light.object.getTransform();
-			transform.setLocalPosition(offsets[p]);
-			transform.setLocalScale(Config.REMOTE_LIGHT_SIZE);
-			remote.lights.push(light);
-		}
-	}
-
-	var gridTransform = GridManager.getGridParent().getTransform();
-	var tilt = quat.angleAxis((-Config.REMOTE_TILT_DEGREES * Math.PI) / 180, vec3.right());
-	var rootTransform = remote.root.getTransform();
-	rootTransform.setWorldPosition(Helpers.gridToWorldPoint(GridManager, Config.REMOTE_POSITION));
-	rootTransform.setWorldRotation(gridTransform.getWorldRotation().multiply(tilt));
-	remote.root.enabled = true;
-}
-
 // ============================================
 // LIFECYCLE
 // ============================================
 
 /**
- * Stops this mode's callbacks, hides its HUD and the remote
+ * Stops this mode's callbacks, hides its HUD and visuals
  */
 function endSession() {
 	clock.stop();
 	setPhase(Phase.IDLE);
 	Helpers.hideHud();
-	if (remote) {
-		remote.root.enabled = false;
+	if (visuals) {
+		visuals.remote.enabled = false;
+		visuals.homeRing.object.enabled = false;
+		for (var i = 0; i < visuals.ripples.length; i++) {
+			visuals.ripples[i].time = -1;
+			visuals.ripples[i].visual.object.enabled = false;
+		}
 	}
 }
 

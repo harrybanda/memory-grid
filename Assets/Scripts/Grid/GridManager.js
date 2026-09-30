@@ -11,6 +11,13 @@ var Constants = require("../Utils/Constants");
 var MathHelpers = require("../Utils/MathHelpers");
 var PathGenerator = require("./PathGenerator");
 var AnimationManager = require("../Utils/AnimationManager");
+var GlowMeshes = require("../Visuals/GlowMeshes");
+
+// Glow tiles: when the scene has a VisualStyle, each tile is drawn as a glowing frame instead of its box.
+// The box stays as the colour store (every colour/alpha call still writes its baseColor, and the box is
+// just hidden), and updateGlows mirrors that colour onto the glow each frame as additive light: rgb * alpha
+var GLOW_LIFT = 0.6; // cm above the tile's centre plane
+var GLOW_GAIN = 1.0;
 
 /**
  * GridManager Component
@@ -101,7 +108,56 @@ function setupIdlePulseUpdate() {
 	var updateEvent = script.createEvent("UpdateEvent");
 	updateEvent.bind(function () {
 		updateIdlePulse();
+		updateGlows();
 	});
+}
+
+/**
+ * Gives a tile a glowing frame in place of its box, if the scene provides the glow material
+ * @param {SceneObject} tileObject - A freshly created tile
+ */
+function attachGlow(tileObject) {
+	var style = global.PathFinder && global.PathFinder.VisualStyle;
+	if (!style || !style.glowMaterial || !script.gridParent) return;
+	var boxVisual = tileObject.getComponent("Component.RenderMeshVisual");
+	if (!boxVisual) return;
+
+	// A sibling under the grid parent, not a child: the tile is scaled to 50cm and the glow mesh is already in cm
+	var glow = GlowMeshes.createVisual(script.gridParent, "TileGlow", GlowMeshes.tile(), style.glowMaterial);
+	var tileTransform = tileObject.getTransform();
+	glow.object.getTransform().setLocalPosition(tileTransform.getLocalPosition().add(new vec3(0, GLOW_LIFT, 0)));
+	glow.object.getTransform().setLocalRotation(tileTransform.getLocalRotation());
+	glow.object.enabled = true;
+
+	boxVisual.enabled = false;
+	tileObject.boxVisual = boxVisual;
+	tileObject.glow = glow;
+	tileObject.glowBaseScale = tileTransform.getLocalScale();
+	tileObject.glowHidden = false;
+}
+
+/**
+ * Mirrors each tile's colour, visibility and scale (reveal pops) onto its glow
+ */
+function updateGlows() {
+	for (var z = 0; z < gridConfig.tileObjects.length; z++) {
+		for (var x = 0; x < gridConfig.tileObjects[z].length; x++) {
+			var tileObject = gridConfig.tileObjects[z][x];
+			if (!tileObject || !tileObject.glow) continue;
+
+			var visible = tileObject.enabled && !tileObject.glowHidden;
+			tileObject.glow.object.enabled = visible;
+			if (!visible) continue;
+
+			var color = tileObject.boxVisual.mainPass.baseColor;
+			var k = color.a * GLOW_GAIN;
+			tileObject.glow.pass.baseColor = new vec4(color.r * k, color.g * k, color.b * k, 1);
+
+			var scale = tileObject.getTransform().getLocalScale();
+			var base = tileObject.glowBaseScale;
+			tileObject.glow.object.getTransform().setLocalScale(new vec3(base.x ? scale.x / base.x : 1, 1, base.z ? scale.z / base.z : 1));
+		}
+	}
 }
 
 /**
@@ -270,6 +326,7 @@ function createTileObject(tileData) {
 
 		// Set initial color
 		setTileColor(tileObject, Constants.GridConfig.COLORS.TILE_DEFAULT);
+		attachGlow(tileObject);
 
 		// Store reference to grid position
 		tileObject.gridX = tileData.gridX;
@@ -342,6 +399,7 @@ function clearGrid() {
 		for (var x = 0; x < gridConfig.tileObjects[z].length; x++) {
 			var tileObject = gridConfig.tileObjects[z][x];
 			if (tileObject) {
+				if (tileObject.glow) tileObject.glow.object.destroy();
 				tileObject.destroy();
 			}
 		}
@@ -944,6 +1002,11 @@ function setTileColorAt(gridX, gridZ, color) {
 function setTileVisualEnabled(gridX, gridZ, enabled) {
 	if (!isValidTilePosition(gridX, gridZ)) return;
 	var tileObject = gridConfig.tileObjects[gridZ][gridX];
+	if (tileObject && tileObject.glow) {
+		// The box stays hidden either way; it only stores the colour
+		tileObject.glowHidden = !enabled;
+		return;
+	}
 	var meshVisual = tileObject && tileObject.getComponent("Component.RenderMeshVisual");
 	if (meshVisual) {
 		meshVisual.enabled = enabled;

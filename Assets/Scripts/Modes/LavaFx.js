@@ -10,7 +10,7 @@
 // Everything is built once and reused across sessions; nothing is created or destroyed per wave.
 
 var Helpers = require("./ModeHelpers");
-var Meshes = require("./LavaFxMeshes");
+var Meshes = require("../Visuals/GlowMeshes");
 
 var FX = {
 	PLATE_LIFT: 0.8, // cm above the floor plane (the hidden tile boxes' tops are at +0.5)
@@ -124,7 +124,7 @@ function create(options) {
 	var groundRing = glow("LavaGroundRing", Meshes.ring());
 	var riseRings = [glow("LavaRiseRing0", Meshes.ring()), glow("LavaRiseRing1", Meshes.ring())];
 	var shockRing = glow("LavaShockRing", Meshes.ring());
-	var vignette = Helpers.createMeshVisual(camera, "LavaBurnGlow", Meshes.strip(), options.glowMaterial);
+	var vignette = Meshes.createVisual(camera, "LavaBurnGlow", Meshes.strip(), options.glowMaterial);
 	vignette.object.getTransform().setLocalPosition(FX.VIGNETTE_POSITION);
 	// The moat's meshes depend on the board size, so they're assigned in place()
 	var moat = glowCard("LavaMoat", Meshes.ring(), options.lavaTexture, new vec2(1, 1), new vec2(0.006, 0.01));
@@ -158,13 +158,13 @@ function create(options) {
 	}
 
 	function glow(name, mesh) {
-		return Helpers.createMeshVisual(parent, name, mesh, options.glowMaterial);
+		return Meshes.createVisual(parent, name, mesh, options.glowMaterial);
 	}
 
 	// Textured cards scroll their texture from script: the material's own UV animation switch isn't
 	// reachable from script, so each frame sets the UV2 offset (wrapped to 0-1; the textures tile)
 	function glowCard(name, mesh, texture, uvScale, uvScroll) {
-		var visual = Helpers.createMeshVisual(parent, name, mesh, options.scrollMaterial, {
+		var visual = Meshes.createVisual(parent, name, mesh, options.scrollMaterial, {
 			texture: texture,
 			uvScale: uvScale,
 		});

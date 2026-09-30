@@ -205,37 +205,6 @@ function setBoxColor(box, color) {
 	}
 }
 
-/**
- * Creates a hidden glow visual at runtime on a clone of an unlit material. The clone is forced to additive
- * blending without depth writes, so black adds nothing on the see-through display and overlaps don't sort
- * @param {SceneObject} parent - Parent object
- * @param {string} name - Object name
- * @param {RenderMesh} mesh - Mesh to draw
- * @param {Asset.Material} material - Material to clone
- * @param {Object} options - Optional {texture, uvScale (vec2)}
- * @returns {Object} {object, visual, pass}
- */
-function createMeshVisual(parent, name, mesh, material, options) {
-	var object = global.scene.createSceneObject(name);
-	object.setParent(parent);
-	var visual = object.createComponent("Component.RenderMeshVisual");
-	visual.mesh = mesh;
-
-	var clone = material.clone();
-	var pass = clone.mainPass;
-	pass.blendMode = BlendMode.Add;
-	pass.depthWrite = false;
-	pass.twoSided = true;
-
-	options = options || {};
-	if (options.texture) pass.baseTex = options.texture;
-	if (options.uvScale) pass.uv2Scale = options.uvScale;
-
-	visual.mainMaterial = clone;
-	object.enabled = false;
-	return { object: object, visual: visual, pass: clone.mainPass };
-}
-
 function clamp01(value) {
 	return Math.max(0, Math.min(1, value));
 }
@@ -286,7 +255,6 @@ module.exports = {
 	horizontalDistance: horizontalDistance,
 	createBox: createBox,
 	setBoxColor: setBoxColor,
-	createMeshVisual: createMeshVisual,
 	clamp01: clamp01,
 	smoothstep: smoothstep,
 	gridToWorldPoint: gridToWorldPoint,

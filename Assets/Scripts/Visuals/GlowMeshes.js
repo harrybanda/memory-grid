@@ -1,9 +1,9 @@
-// LavaFxMeshes.js
-// Runtime meshes for the Floor Is Lava visuals. Soft edges live in vertex alpha, so the additive
-// materials need no mask textures. Each mesh is built once per lens run and shared by every visual.
+// GlowMeshes.js
+// Runtime glow meshes shared by the grid tiles and the game modes. Soft edges live in vertex alpha, so the
+// additive materials need no mask textures. Each mesh is built once per lens run and shared by every visual.
 //
-// Vertex layout: position (cm), normal, texture0 (UV), color (RGBA). The lava materials use
-// Vertex Color = Base Color, so a vertex's colour tints it and its alpha fades it.
+// Vertex layout: position (cm), normal, texture0 (UV), color (RGBA). The glow materials (LavaFX_Glow,
+// LavaFX_Scroll) use Vertex Color = Base Color, so a vertex's colour tints it and its alpha fades it.
 
 var LAYOUT = [
 	{ name: "position", components: 3 },
@@ -93,6 +93,27 @@ function plate() {
 		);
 	}
 	return cache.plate;
+}
+
+/**
+ * Grid tile: a bright frame on the 50cm tile edge with an inner glow that fades toward the middle, so a lit
+ * tile reads as a glowing panel without a flat slab (flat fills show the display's unevenness)
+ */
+function tile() {
+	if (!cache.tile) {
+		cache.tile = squareRings(
+			[
+				{ half: 12, alpha: 0.2 },
+				{ half: 19, alpha: 0.26 },
+				{ half: 22.5, alpha: 0.5 },
+				{ half: 24, alpha: 1 },
+				{ half: 25, alpha: 1 },
+				{ half: 27.5, alpha: 0 },
+			],
+			55
+		);
+	}
+	return cache.tile;
 }
 
 /**
@@ -289,7 +310,40 @@ function strip() {
 	return cache.strip;
 }
 
+/**
+ * Creates a hidden glow visual at runtime on a clone of an unlit material. The clone is forced to additive
+ * blending without depth writes, so black adds nothing on the see-through display and overlaps don't sort
+ * @param {SceneObject} parent - Parent object
+ * @param {string} name - Object name
+ * @param {RenderMesh} mesh - Mesh to draw
+ * @param {Asset.Material} material - Material to clone
+ * @param {Object} options - Optional {texture, uvScale (vec2)}
+ * @returns {Object} {object, visual, pass}
+ */
+function createVisual(parent, name, mesh, material, options) {
+	var object = global.scene.createSceneObject(name);
+	object.setParent(parent);
+	var visual = object.createComponent("Component.RenderMeshVisual");
+	visual.mesh = mesh;
+
+	var clone = material.clone();
+	var pass = clone.mainPass;
+	pass.blendMode = BlendMode.Add;
+	pass.depthWrite = false;
+	pass.twoSided = true;
+
+	options = options || {};
+	if (options.texture) pass.baseTex = options.texture;
+	if (options.uvScale) pass.uv2Scale = options.uvScale;
+
+	visual.mainMaterial = clone;
+	object.enabled = false;
+	return { object: object, visual: visual, pass: clone.mainPass };
+}
+
 module.exports = {
+	createVisual: createVisual,
+	tile: tile,
 	plate: plate,
 	core: core,
 	flame: flame,
