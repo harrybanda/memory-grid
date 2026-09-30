@@ -26,11 +26,13 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    boxMaterial: false
-    boxMesh: false
     cameraObject: false
+    flameTexture: false
+    fxGlowMaterial: false
+    fxScrollMaterial: false
     goTrack: false
     landTrack: false
+    lavaTexture: false
     sfxPlayer: false
   ScriptTypesHidden:
     {}
@@ -42,8 +44,10 @@
     []
   DefaultScriptInputs:
     - cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
-      boxMesh: !<reference.RenderMesh> 00000000-0000-0000-0000-000000000000
-      boxMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      fxScrollMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      fxGlowMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      lavaTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      flameTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
       sfxPlayer: !<reference.AudioComponent> 00000000-0000-0000-0000-000000000000
       landTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
       goTrack: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000

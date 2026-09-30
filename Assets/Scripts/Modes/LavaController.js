@@ -1,9 +1,9 @@
 // LavaController.js
-// Floor Is Lava mode: tiles warn in orange, then burn. Be on a safe tile when the lava lands.
+// Floor Is Lava mode: tiles warn in amber, then burn. Be on a safe tile when the lava lands.
 // Lives in the scene (not the per-session Surface prefab); PlacementBridge routes to it.
 //
 // Flow: WAIT_START (step into the light on the centre tile) -> COUNTDOWN -> waves:
-//   SETTLE (stand near a tile centre) -> WARN (burning tiles pulse orange; a cyan beam marks a safe tile
+//   SETTLE (stand near a tile centre) -> WARN (burning tiles pulse amber; a cyan pillar marks a safe tile
 //   one step forward or sideways, or the game says FREEZE) -> LAND (flames rise; judged over a short
 //   grace window) -> COOL -> next wave. Clear all waves to clear the level; three levels, then it loops.
 //
@@ -12,16 +12,21 @@
 // the next tile moves the head over it. A tile becomes "confirmed" only after the body holds within
 // CONFIRM_RADIUS of its centre for CONFIRM_DWELL, so leans and head bob don't move it. At landing the
 // player is safe if either the confirmed tile or the nearest tile is safe in any frame of the grace window.
+//
+// All visuals are drawn by LavaFx (glowing frames, lava cores, flame tongues, the safe beacon); the grid's
+// own tile boxes are hidden while this mode runs.
 
 // @input SceneObject cameraObject {"label": "Camera", "hint": "The Camera Object with Device Tracking, for head position"}
-// @input Asset.RenderMesh boxMesh {"label": "Box Mesh", "hint": "A unit box mesh, used for the flames and the safe-tile beam"}
-// @input Asset.Material boxMaterial {"label": "Box Material", "hint": "An unlit material with a baseColor (cloned per box)"}
+// @input Asset.Material fxScrollMaterial {"label": "FX Scroll Material", "hint": "LavaFX_Scroll: additive, textured, vertex colour, UV2 scroll"}
+// @input Asset.Material fxGlowMaterial {"label": "FX Glow Material", "hint": "LavaFX_Glow: additive, vertex colour only"}
+// @input Asset.Texture lavaTexture {"label": "Lava Texture", "hint": "T_LavaVeins: glowing cracks on black"}
+// @input Asset.Texture flameTexture {"label": "Flame Texture", "hint": "T_FlameNoise: upward-streaked noise for flames and the safe pillar"}
 // @input Component.AudioComponent sfxPlayer {"label": "SFX Player", "hint": "Lava's own AudioComponent, so its cues don't cut off the shared channel"}
 // @input Asset.AudioTrackAsset landTrack {"label": "Land Sound", "hint": "Played when the lava lands"}
 // @input Asset.AudioTrackAsset goTrack {"label": "Go Sound", "hint": "Played at the end of the countdown"}
 
-var Constants = require("../Utils/Constants");
 var Helpers = require("./ModeHelpers");
+var LavaFx = require("./LavaFx");
 
 var TAG = "Lava";
 
@@ -63,18 +68,9 @@ var Config = {
 	TICK_START: 0.6, // seconds between warning ticks at the start of a warning
 	TICK_END: 0.18,
 
-	FLAME_SIZE: new vec3(45, 140, 45),
-	BEAM_SIZE: new vec3(8, 100, 8), // Kept below eye level: the player stands in it once they reach the tile
-};
-
-var COLORS = {
-	DEFAULT: Helpers.withAlpha(Constants.GridConfig.COLORS.TILE_DEFAULT, 0.35),
-	WARN: new vec4(1.0, 0.55, 0.05, 1.0),
-	LAVA: new vec4(1.0, 0.15, 0.05, 0.9),
-	SAFE: new vec4(0.2, 0.9, 1.0, 0.9),
-	CLEAR: new vec4(0.1, 1.0, 0.5, 0.9),
-	FLAME: new vec4(1.0, 0.35, 0.05, 0.4),
-	BEAM: new vec4(0.2, 0.9, 1.0, 0.55),
+	// The warning frames breathe faster as landing approaches, capped below 3 flashes a second
+	WARN_HZ_START: 0.8,
+	WARN_HZ_END: 2.2,
 };
 
 var Phase = {
@@ -115,14 +111,14 @@ var settleShown = null; // tile lit faintly while waiting to settle, so the play
 
 // Current wave
 var burning = {}; // "x,z" -> true
-var safeTarget = null; // tile the beam marks
+var safeTarget = null; // tile the pillar marks
 var waveType = null;
 var savedDuringGrace = false;
 var tickTimer = 0;
+var warnPhase = 0;
 
 // Runtime visuals, built once and reused across sessions
-var flames = []; // flames[z][x]
-var beam = null;
+var fx = null;
 
 /**
  * Called by PlacementBridge when this mode is selected and the floor is placed
@@ -150,7 +146,10 @@ function onGridPlaced(gridOrigin, floorY) {
 	bounds = computeBounds();
 
 	buildVisuals();
-	placeVisuals();
+	if (fx) {
+		fx.place(GridManager, centres);
+		setTileBoxesVisible(false);
+	}
 
 	confirmed = null;
 	candidate = null;
@@ -164,16 +163,19 @@ function onGridPlaced(gridOrigin, floorY) {
 
 function enterWaitStart() {
 	setPhase(Phase.WAIT_START);
-	clearBoard();
-	paintTile(CENTRE.x, CENTRE.z, COLORS.SAFE);
-	showBeam(CENTRE);
+	if (fx) {
+		fx.resetBoard();
+		fx.setSafe(CENTRE, true);
+	}
 	setHud("FLOOR IS LAVA\nSTEP INTO THE LIGHT", 0);
 }
 
 function startCountdown() {
 	setPhase(Phase.COUNTDOWN);
-	hideBeam();
-	clearBoard();
+	if (fx) {
+		fx.hideSafe();
+		fx.resetBoard(0.3);
+	}
 
 	var steps = ["3", "2", "1"];
 	for (var i = 0; i < steps.length; i++) {
@@ -182,6 +184,7 @@ function startCountdown() {
 	clock.later(steps.length, function () {
 		setHud("GO!", 1.0);
 		Helpers.playTrack(script.sfxPlayer, script.goTrack);
+		if (fx) fx.goSweep();
 		// Let GO! be read before the first wave's MOVE!/FREEZE! (update ignores COUNTDOWN)
 		clock.later(1.0, startLevel);
 	});
@@ -202,8 +205,10 @@ function startLevel() {
 
 function enterSettle() {
 	setPhase(Phase.SETTLE);
-	clearBoard();
-	hideBeam();
+	if (fx) {
+		fx.hideSafe();
+		fx.resetBoard();
+	}
 	settleShown = null;
 	settleTile = null;
 	settleTime = 0;
@@ -217,30 +222,22 @@ function startWave() {
 	safeTarget = plan.safe;
 	savedDuringGrace = false;
 	tickTimer = 0;
+	warnPhase = 0;
 
 	setPhase(Phase.WARN);
-	clearBoard();
-	paintTile(safeTarget.x, safeTarget.z, COLORS.SAFE);
-
-	if (waveType === Wave.FREEZE) {
-		// No beam: it would stand on the player's own tile
-		setHud("FREEZE!", 0);
-	} else {
-		showBeam(safeTarget);
-		setHud("MOVE!", 0);
+	if (fx) {
+		fx.resetBoard();
+		fx.setWarnTiles(burningList());
+		// No pillar on a FREEZE: it would stand on the player's own tile
+		fx.setSafe(safeTarget, waveType !== Wave.FREEZE);
 	}
+	setHud(waveType === Wave.FREEZE ? "FREEZE!" : "MOVE!", 0);
 }
 
 function land() {
 	setPhase(Phase.LAND);
 	Helpers.playTrack(script.sfxPlayer, script.landTrack);
-
-	forEachTile(function (x, z) {
-		if (burning[key(x, z)]) {
-			paintTile(x, z, COLORS.LAVA);
-			setFlameVisible(x, z, true);
-		}
-	});
+	if (fx) fx.ignite(burningList(), playerTile());
 }
 
 function judgeWave() {
@@ -249,9 +246,11 @@ function judgeWave() {
 	if (savedDuringGrace) {
 		setHud("SAFE!", 1.0);
 		Helpers.playStep(waveIndex + 1);
+		if (fx) fx.safePing(playerTile());
 	} else {
 		lives--;
 		Helpers.playSfx("playError");
+		if (fx) fx.burnFlash(playerTile());
 		if (lives <= 0) {
 			loseLevel();
 			return;
@@ -264,9 +263,7 @@ function judgeWave() {
 
 function cool() {
 	setPhase(Phase.COOL);
-	hideFlames();
-	hideBeam();
-	clearBoard();
+	if (fx) fx.cool(Config.COOL_TIME);
 
 	clock.later(Config.COOL_TIME, function () {
 		waveIndex++;
@@ -281,9 +278,7 @@ function cool() {
 function clearLevel() {
 	setPhase(Phase.RESULT);
 	Helpers.playSfx("playCompletion");
-	forEachTile(function (x, z) {
-		paintTile(x, z, COLORS.CLEAR);
-	});
+	if (fx) fx.clearRipple(playerTile());
 
 	var finished = levelIndex >= LEVELS.length - 1;
 	setHud(finished ? "YOU SURVIVED THE LAVA!" : "LEVEL " + (levelIndex + 1) + " CLEAR!", 0);
@@ -294,14 +289,11 @@ function clearLevel() {
 
 function loseLevel() {
 	setPhase(Phase.RESULT);
-	hideBeam();
-	forEachTile(function (x, z) {
-		paintTile(x, z, COLORS.LAVA);
-	});
+	if (fx) fx.burnedOut();
 	setHud("BURNED OUT\nLEVEL " + (levelIndex + 1) + " AGAIN", 0);
 
 	clock.later(Config.LAVA_HOLD, function () {
-		hideFlames();
+		if (fx) fx.sinkFlames();
 	});
 	clock.later(3.0, startCountdown);
 }
@@ -313,10 +305,13 @@ function loseLevel() {
 function update() {
 	if (!clock.isActive() || !GridManager) return;
 
+	var dt = getDeltaTime();
+	// Before the body check, so animations never freeze
+	if (fx) fx.update(dt);
+
 	bodyNow = Helpers.bodyLocal(GridManager, script.cameraObject);
 	if (!bodyNow) return;
 
-	var dt = getDeltaTime();
 	phaseTime += dt;
 	updateOccupancy(bodyNow, dt);
 	var head = Helpers.headLocal(GridManager, script.cameraObject);
@@ -339,9 +334,9 @@ function update() {
 		}
 	} else if (phase === Phase.WARN) {
 		updateWarning(dt);
-		if (waveType !== Wave.FREEZE && nearest && nearest.x === safeTarget.x && nearest.z === safeTarget.z) {
-			// Arrived: the tile stays cyan, the beam would only get in the way
-			hideBeam();
+		if (fx && waveType !== Wave.FREEZE && nearest && nearest.x === safeTarget.x && nearest.z === safeTarget.z) {
+			// Arrived: the tile stays cyan, the pillar would only get in the way
+			fx.hideBeam();
 		}
 		if (phaseTime >= LEVELS[levelIndex].warn) {
 			land();
@@ -412,9 +407,9 @@ function updateSettle(dt) {
 function showSettleTile() {
 	var same = settleShown && nearest && settleShown.x === nearest.x && settleShown.z === nearest.z;
 	if (same || (!settleShown && !nearest)) return;
-	if (settleShown) paintTile(settleShown.x, settleShown.z, COLORS.DEFAULT);
+	if (settleShown && fx) fx.setPlateLook(settleShown.x, settleShown.z, "idle");
 	settleShown = nearest ? { x: nearest.x, z: nearest.z } : null;
-	if (settleShown) paintTile(settleShown.x, settleShown.z, Helpers.withAlpha(COLORS.SAFE, 0.35));
+	if (settleShown && fx) fx.setPlateLook(settleShown.x, settleShown.z, "settle");
 }
 
 /**
@@ -430,19 +425,16 @@ function isSafeNow() {
 }
 
 /**
- * Pulses the burning tiles and speeds up the warning ticks as landing approaches
+ * Pulses the burning tiles, grows their cracks and speeds up the warning ticks as landing approaches
  */
 function updateWarning(dt) {
 	var warn = LEVELS[levelIndex].warn;
 	var progress = Math.min(phaseTime / warn, 1);
 
-	var pulseSpeed = 4 + 10 * progress;
-	var alpha = 0.35 + 0.55 * (0.5 + 0.5 * Math.sin(phaseTime * pulseSpeed));
-	forEachTile(function (x, z) {
-		if (burning[key(x, z)]) {
-			paintTile(x, z, Helpers.withAlpha(COLORS.WARN, alpha));
-		}
-	});
+	// Accumulated phase, so the pulse rate is exactly the stated frequency (never above WARN_HZ_END)
+	var hz = Config.WARN_HZ_START + (Config.WARN_HZ_END - Config.WARN_HZ_START) * progress;
+	warnPhase += 2 * Math.PI * hz * dt;
+	if (fx) fx.setWarnLevel(0.5 + 0.5 * Math.sin(warnPhase), progress);
 
 	tickTimer -= dt;
 	if (tickTimer <= 0) {
@@ -567,16 +559,6 @@ function computeBounds() {
 	};
 }
 
-function clearBoard() {
-	forEachTile(function (x, z) {
-		paintTile(x, z, COLORS.DEFAULT);
-	});
-}
-
-function paintTile(x, z, color) {
-	GridManager.setTileColorAt(x, z, color);
-}
-
 function forEachTile(fn) {
 	for (var z = 0; z < ROWS; z++) {
 		for (var x = 0; x < COLUMNS; x++) {
@@ -586,64 +568,46 @@ function forEachTile(fn) {
 }
 
 /**
- * Builds one flame column per tile and the safe-tile beam, once
+ * Builds the lava visuals once; they are reused across sessions
  */
 function buildVisuals() {
-	if (!script.boxMesh || !script.boxMaterial || beam) return;
-
-	var parent = script.getSceneObject();
-	for (var z = 0; z < ROWS; z++) {
-		flames[z] = [];
-		for (var x = 0; x < COLUMNS; x++) {
-			var flame = Helpers.createBox(parent, "LavaFlame" + x + z, script.boxMesh, script.boxMaterial);
-			Helpers.setBoxColor(flame, COLORS.FLAME);
-			flame.object.getTransform().setLocalScale(Config.FLAME_SIZE);
-			flame.object.enabled = false;
-			flames[z][x] = flame;
-		}
-	}
-	beam = Helpers.createBox(parent, "LavaBeam", script.boxMesh, script.boxMaterial);
-	Helpers.setBoxColor(beam, COLORS.BEAM);
-	beam.object.getTransform().setLocalScale(Config.BEAM_SIZE);
-	beam.object.enabled = false;
+	if (fx) return;
+	fx = LavaFx.create({
+		parent: script.getSceneObject(),
+		cameraObject: script.cameraObject,
+		scrollMaterial: script.fxScrollMaterial,
+		glowMaterial: script.fxGlowMaterial,
+		lavaTexture: script.lavaTexture,
+		flameTexture: script.flameTexture,
+		rows: ROWS,
+		columns: COLUMNS,
+	});
 }
 
 /**
- * Stands each flame on its tile for this session's grid
+ * The grid's own boxes are hidden while the lava visuals draw the tiles
  */
-function placeVisuals() {
-	if (!beam) return;
-	var rotation = GridManager.getGridParent().getTransform().getWorldRotation();
+function setTileBoxesVisible(visible) {
+	// The Surface prefab (and its GridManager) is destroyed on exit, after this mode's teardown
+	if (!GridManager || isNull(GridManager) || !GridManager.setTileVisualEnabled) return;
 	forEachTile(function (x, z) {
-		var transform = flames[z][x].object.getTransform();
-		var centre = centres[z][x];
-		transform.setWorldPosition(Helpers.gridToWorldPoint(GridManager, new vec3(centre.x, Config.FLAME_SIZE.y / 2, centre.z)));
-		transform.setWorldRotation(rotation);
-	});
-	beam.object.getTransform().setWorldRotation(rotation);
-}
-
-function setFlameVisible(x, z, visible) {
-	if (flames[z] && flames[z][x]) {
-		flames[z][x].object.enabled = visible;
-	}
-}
-
-function hideFlames() {
-	forEachTile(function (x, z) {
-		setFlameVisible(x, z, false);
+		GridManager.setTileVisualEnabled(x, z, visible);
 	});
 }
 
-function showBeam(tile) {
-	if (!beam) return;
-	var centre = centres[tile.z][tile.x];
-	beam.object.getTransform().setWorldPosition(Helpers.gridToWorldPoint(GridManager, new vec3(centre.x, Config.BEAM_SIZE.y / 2, centre.z)));
-	beam.object.enabled = true;
+/**
+ * The tile the player is over right now, for centring effects
+ */
+function playerTile() {
+	return nearest || confirmed || CENTRE;
 }
 
-function hideBeam() {
-	if (beam) beam.object.enabled = false;
+function burningList() {
+	var list = [];
+	forEachTile(function (x, z) {
+		if (burning[key(x, z)]) list.push({ x: x, z: z });
+	});
+	return list;
 }
 
 // ============================================
@@ -651,15 +615,15 @@ function hideBeam() {
 // ============================================
 
 /**
- * Stops this mode's callbacks and hides its HUD, flames and beam
+ * Stops this mode's callbacks and hides its HUD and visuals
  */
 function endSession() {
 	clock.stop();
 	setPhase(Phase.IDLE);
 	Helpers.hideHud();
 	Helpers.stopTrack(script.sfxPlayer);
-	hideFlames();
-	hideBeam();
+	if (fx) fx.hideAll();
+	setTileBoxesVisible(true);
 }
 
 /**

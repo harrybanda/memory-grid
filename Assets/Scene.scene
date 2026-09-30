@@ -5170,8 +5170,10 @@
   ScriptInputs:
     "":
       cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
-      boxMesh: !<reference.RenderMesh> e542623c-1432-4bfa-881d-a28905bd9e57
-      boxMaterial: !<reference.Material> c87b13d2-8f5b-436f-8435-c4c1d2d1da34
+      fxScrollMaterial: !<reference.Material> 8ed9a3e1-5569-422b-b7a3-9f12555c906f
+      fxGlowMaterial: !<reference.Material> cf58a506-5bcc-4880-98a4-05dc77a28bff
+      lavaTexture: !<reference.Texture> 4752b204-1e15-43b8-8ca2-9fd193fa2606
+      flameTexture: !<reference.Texture> 8a7efa01-7c6e-460f-a8ac-e7506d5e6263
       sfxPlayer: !<reference.AudioComponent> 3cf95cdd-f6f2-49ac-861a-a2b63f6e8677
       landTrack: !<reference.AudioTrackAsset> 6769ef20-1ac2-4f1d-8fcc-345457cb2a0d
       goTrack: !<reference.AudioTrackAsset> 708d558f-94af-41ea-a7ed-c92664e8a48e

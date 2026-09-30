@@ -935,6 +935,22 @@ function setTileColorAt(gridX, gridZ, color) {
 }
 
 /**
+ * Shows or hides one tile's box (its trigger child keeps working either way)
+ * Modes that draw their own tile visuals hide the boxes so hidden fills don't cost GPU time
+ * @param {number} gridX - X coordinate
+ * @param {number} gridZ - Z coordinate
+ * @param {boolean} enabled - Whether the box renders
+ */
+function setTileVisualEnabled(gridX, gridZ, enabled) {
+	if (!isValidTilePosition(gridX, gridZ)) return;
+	var tileObject = gridConfig.tileObjects[gridZ][gridX];
+	var meshVisual = tileObject && tileObject.getComponent("Component.RenderMeshVisual");
+	if (meshVisual) {
+		meshVisual.enabled = enabled;
+	}
+}
+
+/**
  * Converts a world position into GridParent-local centimeters (no tile binning)
  * +Z points toward the player at placement; tile centers come from getTileWorldPosition
  * @param {vec3} worldPos - World position to convert
@@ -976,6 +992,7 @@ script.getTileWorldPosition = getTileWorldPosition;
 script.onTriggerEntered = onTriggerEntered;
 script.resetTriggers = resetTriggers;
 script.setTileColorAt = setTileColorAt;
+script.setTileVisualEnabled = setTileVisualEnabled;
 script.worldToGridLocal = worldToGridLocal;
 
 // Scene-level mode controllers find the current session's grid here
