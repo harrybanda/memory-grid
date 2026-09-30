@@ -230,6 +230,21 @@ function borderCurtain(length, offset) {
 }
 
 /**
+ * Unit quad on XY facing +Z, centred, UV 0-1 with v up (for textured icons)
+ */
+function panel() {
+	if (cache.panel) return cache.panel;
+	var data = new MeshData();
+	data.vertex(-0.5, -0.5, 0, FACING, 0, 0, WHITE, 1);
+	data.vertex(0.5, -0.5, 0, FACING, 1, 0, WHITE, 1);
+	data.vertex(0.5, 0.5, 0, FACING, 1, 1, WHITE, 1);
+	data.vertex(-0.5, 0.5, 0, FACING, 0, 1, WHITE, 1);
+	data.quad(0, 1, 2, 3);
+	cache.panel = data.build();
+	return cache.panel;
+}
+
+/**
  * Upright card on XY with its base at y = 0 and a unit height (scale Y sets the height in cm)
  * @param {Object} profile - {rows: [{v, half, color, alpha}], columns: [{s, alpha}]}; s runs -1..1 across
  */
@@ -400,6 +415,7 @@ function createVisual(parent, name, mesh, material, options) {
 
 module.exports = {
 	createVisual: createVisual,
+	panel: panel,
 	tile: tile,
 	plate: plate,
 	core: core,

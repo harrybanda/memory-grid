@@ -1,0 +1,58 @@
+- !<AssetImportMetadata/d67be707-3416-4fe5-9ed7-92161f2b5441>
+  ImportedAssetIds:
+    JavaScriptAsset: !<reference> c12b52c0-4bd5-460d-9329-5f30e99fd6e0
+  ImporterName: JavaScriptAssetImporter
+  PrimaryAsset: !<reference> c12b52c0-4bd5-460d-9329-5f30e99fd6e0
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    JavaScriptAsset: !<own> b8f44758-bac7-48a0-bbf8-9c0af4082256
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<ScriptAssetData/b8f44758-bac7-48a0-bbf8-9c0af4082256>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 5490471b-559e-4e08-9971-53533e92d58c
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    classicCard: false
+    classicIcon: false
+    iconMaterial: false
+    lavaCard: false
+    lavaIcon: false
+    minefieldCard: false
+    minefieldIcon: false
+    tonePadsCard: false
+    tonePadsIcon: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - classicCard: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      minefieldCard: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      tonePadsCard: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      lavaCard: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      classicIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      minefieldIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      tonePadsIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      lavaIcon: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      iconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}

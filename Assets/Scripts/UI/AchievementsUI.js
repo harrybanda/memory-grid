@@ -1,8 +1,13 @@
 // AchievementsUI.js
-// Displays achievements in a grid of cards
+// Displays achievements in a grid of cards, with a tab per game mode
 // Icons are auto-matched by filename (like AudioManager)
+// Only Classic has achievements so far; the other modes' tabs say theirs are coming
 
 // @input SceneObject backButton {"label": "Back Button", "hint": "Button to return to main menu"}
+// @input SceneObject classicTab {"label": "Classic Tab"}
+// @input SceneObject minefieldTab {"label": "Minefield Tab"}
+// @input SceneObject tonePadsTab {"label": "Tone Pads Tab"}
+// @input SceneObject lavaTab {"label": "Floor Is Lava Tab"}
 // @input Component.Text titleText {"label": "Title Text", "hint": "Achievements screen title"}
 
 // @ui {"widget": "separator"}
@@ -45,6 +50,23 @@ try {
 
 var backBtn = null;
 var spawnedCards = [];
+
+// One tab per game mode. Only Classic has achievements for now
+var TABS = [
+	{ input: "classicTab", name: "CLASSIC", hasAchievements: true },
+	{ input: "minefieldTab", name: "MINEFIELD", hasAchievements: false },
+	{ input: "tonePadsTab", name: "TONE PADS", hasAchievements: false },
+	{ input: "lavaTab", name: "FLOOR IS LAVA", hasAchievements: false },
+];
+var TAB_LABEL_SIZE = 26;
+
+function tabButton(index) {
+	return script[TABS[index].input] || null;
+}
+var TAB_ACTIVE_COLOR = new vec4(1, 1, 1, 1);
+var TAB_IDLE_COLOR = new vec4(0.5, 0.55, 0.62, 1);
+var activeTab = 0;
+var comingSoonText = null;
 
 // Icon texture map: achievementId -> Texture (built from iconTextures array)
 var iconMap = {};
@@ -435,10 +457,76 @@ function syncUnlockStatus() {
 	}
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MODE TABS
+// ═══════════════════════════════════════════════════════════════════
+
+function findFirstText(object) {
+	var text = object.getComponent("Component.Text");
+	if (text) return text;
+	for (var i = 0; i < object.getChildrenCount(); i++) {
+		var found = findFirstText(object.getChild(i));
+		if (found) return found;
+	}
+	return null;
+}
+
 /**
- * Display all achievements in a grid
+ * Shows one mode's achievements: Classic's cards, or a coming-soon note for the others
+ * @param {number} index - Index into TABS
+ */
+function selectTab(index) {
+	activeTab = index;
+	for (var i = 0; i < TABS.length; i++) {
+		var button = tabButton(i);
+		var label = button ? findFirstText(button) : null;
+		if (label) label.textFill.color = i === index ? TAB_ACTIVE_COLOR : TAB_IDLE_COLOR;
+	}
+
+	if (TABS[index].hasAchievements) {
+		hideComingSoon();
+		showClassicCards();
+	} else {
+		clearCards();
+		showComingSoon(TABS[index].name);
+	}
+}
+
+function showComingSoon(modeName) {
+	if (!comingSoonText) {
+		var source = script.titleText || findFirstText(script.getSceneObject());
+		var object = global.scene.createSceneObject("ComingSoon");
+		object.setParent(script.getSceneObject());
+		var gridY = script.gridContainer ? script.gridContainer.getTransform().getLocalPosition().y : 0;
+		object.getTransform().setLocalPosition(new vec3(0, gridY - 10, 0.05));
+		comingSoonText = object.createComponent("Component.Text");
+		if (source) comingSoonText.font = source.font;
+		comingSoonText.size = 30;
+		comingSoonText.horizontalAlignment = HorizontalAlignment.Center;
+		comingSoonText.verticalAlignment = VerticalAlignment.Center;
+		comingSoonText.worldSpaceRect = Rect.create(-13, 13, -4, 4);
+		comingSoonText.textFill.color = new vec4(0.75, 0.8, 0.88, 1);
+		comingSoonText.depthTest = false;
+	}
+	comingSoonText.text = modeName + " ACHIEVEMENTS\nARE COMING SOON";
+	comingSoonText.getSceneObject().enabled = true;
+}
+
+function hideComingSoon() {
+	if (comingSoonText) comingSoonText.getSceneObject().enabled = false;
+}
+
+/**
+ * Opens (or refreshes) the achievements screen on the Classic tab
  */
 function displayAchievements() {
+	selectTab(0);
+}
+
+/**
+ * Display Classic's achievements in a grid
+ */
+function showClassicCards() {
 	// Ensure icon map is built (handles case where display is called before OnStartEvent)
 	if (Object.keys(iconMap).length === 0) {
 		buildIconMap();
@@ -460,6 +548,7 @@ function displayAchievements() {
 
 function onBackPressed() {
 	clearCards();
+	hideComingSoon();
 
 	if (script.mainMenuScript && script.mainMenuScript.showMenu) {
 		script.mainMenuScript.showMenu();
@@ -522,6 +611,21 @@ function initialize() {
 		backBtn = setupButton(script.backButton, onBackPressed);
 	}
 
+	for (var i = 0; i < TABS.length; i++) {
+		var button = tabButton(i);
+		if (!button) continue;
+		var label = findFirstText(button);
+		if (label) {
+			label.text = TABS[i].name;
+			label.size = TAB_LABEL_SIZE;
+		}
+		(function (index) {
+			setupButton(button, function () {
+				selectTab(index);
+			});
+		})(i);
+	}
+
 	// Build the icon map from texture filenames
 	buildIconMap();
 }
@@ -532,6 +636,7 @@ script.createEvent("OnStartEvent").bind(function () {
 
 // Export API
 script.displayAchievements = displayAchievements;
+script.selectTab = selectTab;
 script.clearCards = clearCards;
 script.setAchievementUnlocked = setAchievementUnlocked;
 script.getAchievements = getAchievements;

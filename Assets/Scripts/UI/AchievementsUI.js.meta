@@ -29,13 +29,17 @@
     backButton: false
     cardPrefab: false
     cardSpacing: false
+    classicTab: false
     gridColumns: false
     gridContainer: false
     gridOffset: false
     iconTextures: false
+    lavaTab: false
     lockedTint: false
     mainMenuScript: false
+    minefieldTab: false
     titleText: false
+    tonePadsTab: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -46,6 +50,10 @@
     []
   DefaultScriptInputs:
     - backButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      classicTab: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      minefieldTab: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      tonePadsTab: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      lavaTab: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       titleText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       cardPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
       gridContainer: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000

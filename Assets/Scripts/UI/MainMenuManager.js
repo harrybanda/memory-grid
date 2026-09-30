@@ -1,5 +1,5 @@
 // MainMenuManager.js
-// Handles main menu UI with Start and Achievements buttons
+// Handles the main menu: one card per game mode (drawn by MenuCards.js), plus Achievements and Reset
 // Uses Spectacles UI Kit for button interactions
 
 var Constants = require("../Utils/Constants");
@@ -326,18 +326,25 @@ function updateLevelDisplay() {
 		currentLevel = global.PathFinder.Save.getCurrentLevel();
 	}
 
-	// Update level text
+	// Update level text (the saved levels are Classic's; the other modes start at level 1 each session)
 	if (script.levelText) {
 		if (currentLevel > 11) {
-			script.levelText.text = "All Levels Complete!";
+			script.levelText.text = "Classic · All levels complete!";
 		} else {
-			script.levelText.text = "Level " + currentLevel + " of 11";
+			script.levelText.text = "Classic · Level " + currentLevel + " of 11";
 		}
 	}
 
-	// Hide reset button on level 1 (nothing to reset)
+	// Hide reset button on level 1 (nothing to reset), and centre Achievements when it's alone on its row
+	var showReset = currentLevel > 1;
 	if (script.resetProgressButton) {
-		script.resetProgressButton.enabled = currentLevel > 1;
+		script.resetProgressButton.enabled = showReset;
+	}
+	if (script.achievementsButton && script.resetProgressButton) {
+		var achievementsTransform = script.achievementsButton.getTransform();
+		var position = achievementsTransform.getLocalPosition();
+		var resetX = script.resetProgressButton.getTransform().getLocalPosition().x;
+		achievementsTransform.setLocalPosition(new vec3(showReset ? -resetX : 0, position.y, position.z));
 	}
 
 	// Show debug-only "Reset All" button only when debug mode is enabled.
