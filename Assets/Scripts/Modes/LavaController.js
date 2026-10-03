@@ -3,12 +3,13 @@
 // Lives in the scene (not the per-session Surface prefab); PlacementBridge routes to it.
 //
 // Flow: WAIT_START (step into the light) -> COUNTDOWN -> waves:
-//   SETTLE (stand near a tile centre) -> WARN (burning tiles pulse amber; on level 1 a cyan pillar marks a
-//   safe tile, after that the player has to read the board) -> LAND (flames rise; judged over a short grace
-//   window) -> COOL -> next wave. Clear all waves to clear the level; three levels, then it loops.
+//   SETTLE (stand near a tile centre; not shown on the board) -> WARN (the tiles about to burn flash an amber
+//   "!", then the board goes dark and the player moves from memory; no hints on any level) -> LAND (only now
+//   does lava appear: flames rise; judged over a short grace window) -> COOL -> next wave. Clear all waves to
+//   clear the level; six levels, then it loops. Cyan only ever means "go here": the start tile.
 //
 // One life: a single burn restarts the level. The board sits in a lava moat, so stepping off it burns too.
-// On the last level the floor crumbles: the tile each wave starts from stays lava for the rest of the level.
+// On crumble levels (3, 5 and 6) the tile each wave starts from stays lava for the rest of the level.
 //
 // Where the player stands is tracked every frame from a body estimate: the head position pulled back when
 // looking down (ModeHelpers.bodyLocal), since the tile triggers only report first entries and looking at
@@ -50,28 +51,32 @@ var Wave = {
 };
 
 // ISLAND is the hard wave: one safe tile to find. beacon: the cyan pillar marks a safe tile. reach: how far away the safe tile can be (2 = two tiles in a
-// straight line), diagonal: whether it can be a diagonal step. crumble: the tile each wave starts from stays lava
+// straight line), diagonal: whether it can be a diagonal step. crumble: the tile each wave starts from stays lava.
+// flash: seconds the warning (and beacon) stays lit before the board goes dark; the rest of warn is from memory
 var LEVELS = [
 	{
 		warn: 2.4,
-		beacon: true,
+		flash: 1.0,
+		beacon: false,
 		reach: 1,
 		diagonal: false,
 		crumble: false,
-		intro: "FOLLOW THE LIGHT",
+		intro: "WATCH CLOSELY",
 		waves: [Wave.LINE, Wave.CHECKER, Wave.ISLAND, Wave.LINE, Wave.ISLAND],
 	},
 	{
 		warn: 2.0,
+		flash: 0.7,
 		beacon: false,
 		reach: 1,
 		diagonal: true,
 		crumble: false,
-		intro: "NO MORE HINTS",
+		intro: "SHORTER FLASHES",
 		waves: [Wave.LINE, Wave.ISLAND, Wave.CHECKER, Wave.ISLAND, Wave.FREEZE, Wave.LINE, Wave.ISLAND],
 	},
 	{
 		warn: 2.0,
+		flash: 0.5,
 		beacon: false,
 		reach: 2,
 		diagonal: true,
@@ -79,15 +84,50 @@ var LEVELS = [
 		intro: "THE FLOOR CRUMBLES",
 		waves: [Wave.CHECKER, Wave.ISLAND, Wave.LINE, Wave.ISLAND, Wave.FREEZE, Wave.CHECKER, Wave.ISLAND, Wave.ISLAND],
 	},
+	{
+		warn: 1.9,
+		flash: 0.45,
+		beacon: false,
+		reach: 2,
+		diagonal: true,
+		crumble: false,
+		intro: "FURTHER TO RUN",
+		waves: [Wave.ISLAND, Wave.CHECKER, Wave.LINE, Wave.ISLAND, Wave.ISLAND, Wave.FREEZE, Wave.CHECKER, Wave.ISLAND],
+	},
+	{
+		warn: 1.8,
+		flash: 0.4,
+		beacon: false,
+		reach: 2,
+		diagonal: true,
+		crumble: true,
+		intro: "BLINK AND YOU MISS IT",
+		waves: [Wave.ISLAND, Wave.LINE, Wave.ISLAND, Wave.CHECKER, Wave.ISLAND, Wave.FREEZE, Wave.ISLAND, Wave.ISLAND],
+	},
+	{
+		warn: 1.8,
+		flash: 0.3,
+		beacon: false,
+		reach: 2,
+		diagonal: true,
+		crumble: true,
+		intro: "THE FINAL FLOOR",
+		waves: [Wave.ISLAND, Wave.CHECKER, Wave.ISLAND, Wave.LINE, Wave.ISLAND, Wave.ISLAND, Wave.FREEZE, Wave.ISLAND],
+	},
 ];
 
 var Config = {
 	LIVES: 1, // One burn restarts the level. Raising it brings back "BURNED! n LIVES LEFT"
 
+	// Show, then hide: the warning only flashes for the level's flash time, then the player moves from memory.
+	// false keeps it lit for the whole warning (the original behaviour)
+	SHOW_THEN_HIDE: true,
+	HIDE_FADE: 0.2,
+
 	CONFIRM_RADIUS: 21, // cm from a tile centre before that tile can become the confirmed tile (< half the 55cm pitch)
 	CONFIRM_DWELL: 0.3, // seconds the head must hold there
 	SETTLE_RADIUS: 26, // a wave only starts once the body holds this close to a tile's centre for CONFIRM_DWELL
-	SETTLE_HINT_AFTER: 1.5, // seconds unsettled before "STEP TO THE MIDDLE OF THE LIT TILE"
+	SETTLE_HINT_AFTER: 1.5, // seconds unsettled before "STAND IN THE MIDDLE OF A TILE"
 	TILE_HALF: 25,
 
 	// The moat: the body this far past the tiles' outer edge is in the lava. Enough for a heel on the edge
@@ -145,7 +185,6 @@ var bodyNow = null;
 var nearestHead = null; // tile nearest the raw head; the landing check accepts either estimate
 var settleTile = null;
 var settleTime = 0;
-var settleShown = null; // tile lit faintly while waiting to settle, so the player sees which tile counts
 var hazardTime = 0; // how long the body has been in the moat or on a crumbled tile
 
 // Current wave
@@ -154,6 +193,7 @@ var safeTarget = null; // a tile guaranteed safe (the pillar marks it on beacon 
 var waveStart = null; // the tile the wave was planned from (it crumbles on crumble levels)
 var waveType = null;
 var savedDuringGrace = false;
+var warningHidden = false;
 var tickTimer = 0;
 var warnPhase = 0;
 
@@ -208,7 +248,7 @@ function enterWaitStart() {
 		fx.resetBoard();
 		fx.setSafe(START, true);
 	}
-	setHud("FLOOR IS LAVA\nSTEP INTO THE LIGHT", 0);
+	setHud("FLOOR IS LAVA\nSTAND IN THE LIGHT TO START\nFROM THE MIDDLE YOU CAN DODGE ANY WAY", 0);
 }
 
 function startCountdown() {
@@ -252,7 +292,6 @@ function enterSettle() {
 		fx.hideSafe();
 		fx.resetBoard();
 	}
-	settleShown = null;
 	settleTile = null;
 	settleTime = 0;
 }
@@ -265,6 +304,7 @@ function startWave() {
 	safeTarget = plan.safe;
 	waveStart = confirmed ? { x: confirmed.x, z: confirmed.z } : null;
 	savedDuringGrace = false;
+	warningHidden = false;
 	tickTimer = 0;
 	warnPhase = 0;
 
@@ -281,6 +321,18 @@ function startWave() {
 	setHud(waveType === Wave.FREEZE ? "FREEZE!" : "MOVE!", 0);
 }
 
+/**
+ * The board goes dark mid-warning: the burning tiles and the beacon fade back to the idle look (crumbled
+ * tiles stay lava) while the ticks keep counting down, so the player has to remember where it lands
+ */
+function hideWarning() {
+	warningHidden = true;
+	if (fx) {
+		fx.hideSafe();
+		fx.resetBoard(Config.HIDE_FADE);
+	}
+}
+
 function land() {
 	setPhase(Phase.LAND);
 	Helpers.playTrack(script.sfxPlayer, script.landTrack);
@@ -292,6 +344,7 @@ function judgeWave() {
 
 	if (savedDuringGrace) {
 		setHud("SAFE!", 1.0);
+		Helpers.addToCount("lava", "wavesSurvived", 1);
 		Helpers.playStep(waveIndex + 1);
 		if (fx) fx.safePing(playerTile());
 	} else {
@@ -332,6 +385,7 @@ function cool() {
 function clearLevel() {
 	setPhase(Phase.RESULT);
 	Helpers.playSfx("playCompletion");
+	Helpers.recordLevelCleared("lava", levelIndex + 1, LEVELS.length);
 	if (fx) fx.clearRipple(playerTile());
 
 	var finished = levelIndex >= LEVELS.length - 1;
@@ -350,6 +404,7 @@ function failLevel(reason) {
 	clock.invalidate();
 	setPhase(Phase.RESULT);
 	Helpers.playSfx("playError");
+	Helpers.recordLevelFailed("lava", levelIndex + 1);
 	if (fx) {
 		fx.burnFlash(playerTile());
 		fx.burnedOut();
@@ -393,7 +448,6 @@ function update() {
 			startCountdown();
 		}
 	} else if (phase === Phase.SETTLE) {
-		showSettleTile();
 		if (updateSettle(dt)) {
 			// Plan from the tile the player is actually holding
 			confirmed = { x: settleTile.x, z: settleTile.z };
@@ -401,9 +455,12 @@ function update() {
 		} else if (!nearest) {
 			setHud("STEP ONTO THE BOARD", 0);
 		} else if (phaseTime >= Config.SETTLE_HINT_AFTER) {
-			setHud("STEP TO THE MIDDLE OF THE LIT TILE", 0);
+			setHud("STAND IN THE MIDDLE OF A TILE\nSO THE GAME KNOWS WHERE YOU ARE", 0);
 		}
 	} else if (phase === Phase.WARN) {
+		if (Config.SHOW_THEN_HIDE && !warningHidden && phaseTime >= LEVELS[levelIndex].flash) {
+			hideWarning();
+		}
 		updateWarning(dt);
 		if (fx && waveType !== Wave.FREEZE && nearest && nearest.x === safeTarget.x && nearest.z === safeTarget.z) {
 			// Arrived: the tile stays cyan, the pillar would only get in the way
@@ -508,17 +565,6 @@ function updateSettle(dt) {
 	}
 	settleTime += dt;
 	return settleTime >= Config.CONFIRM_DWELL;
-}
-
-/**
- * While waiting to settle, lights the tile the player is over faintly so they can see which tile counts
- */
-function showSettleTile() {
-	var same = settleShown && nearest && settleShown.x === nearest.x && settleShown.z === nearest.z;
-	if (same || (!settleShown && !nearest)) return;
-	if (settleShown && fx) fx.setPlateLook(settleShown.x, settleShown.z, "idle");
-	settleShown = nearest ? { x: nearest.x, z: nearest.z } : null;
-	if (settleShown && fx && !molten[key(settleShown.x, settleShown.z)]) fx.setPlateLook(settleShown.x, settleShown.z, "settle");
 }
 
 /**

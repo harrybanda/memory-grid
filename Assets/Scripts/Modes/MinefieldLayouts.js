@@ -1,5 +1,7 @@
 // MinefieldLayouts.js
 // Hand-picked Minefield layouts, two per level. Validate with: node tools/minefield-layouts.js
+// A 4x4 board tops out at 6 mines with an 8-step route (level 3), so levels 4-6 get harder through more mines
+// to remember and less time to study, using the most scattered layouts (a solid wall is easy to remember).
 // Board: 4 columns (x 0-3) by 4 rows (z 0-3). The player steps on from the start marker onto row 3 (the near
 // row, which can hold mines); the goal is in row 0. Every layout and its left-right mirror is solvable walking
 // from tile centre to tile centre: straight steps, and diagonal steps only where both tiles beside the diagonal
@@ -36,6 +38,36 @@ var LEVELS = [
 			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 0 }, { x: 1, z: 1 }, { x: 2, z: 1 }, { x: 0, z: 2 }, { x: 2, z: 3 }, { x: 3, z: 3 }] },
 			// ..GX / .XX. / ...X / XX..
 			{ goal: { x: 2, z: 0 }, mines: [{ x: 3, z: 0 }, { x: 1, z: 1 }, { x: 2, z: 1 }, { x: 3, z: 2 }, { x: 0, z: 3 }, { x: 1, z: 3 }] },
+		],
+	},
+	{
+		studyCap: 9,
+		minMoves: 7,
+		layouts: [
+			// .G.. / XX.X / ...X / .XX.  : six mines spread over every row
+			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 1 }, { x: 1, z: 1 }, { x: 3, z: 1 }, { x: 3, z: 2 }, { x: 1, z: 3 }, { x: 2, z: 3 }] },
+			// .G.. / X.X. / XX.. / X..X
+			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 1 }, { x: 2, z: 1 }, { x: 0, z: 2 }, { x: 1, z: 2 }, { x: 0, z: 3 }, { x: 3, z: 3 }] },
+		],
+	},
+	{
+		studyCap: 8,
+		minMoves: 6,
+		layouts: [
+			// .G.. / XX.X / X..X / X.X.  : seven mines
+			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 1 }, { x: 1, z: 1 }, { x: 3, z: 1 }, { x: 0, z: 2 }, { x: 3, z: 2 }, { x: 0, z: 3 }, { x: 2, z: 3 }] },
+			// .G.. / XX.X / XX.. / X.X.
+			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 1 }, { x: 1, z: 1 }, { x: 3, z: 1 }, { x: 0, z: 2 }, { x: 1, z: 2 }, { x: 0, z: 3 }, { x: 2, z: 3 }] },
+		],
+	},
+	{
+		studyCap: 7,
+		minMoves: 7,
+		layouts: [
+			// .G.. / XXX. / XX.. / X..X  : seven mines and a seven-step route
+			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 1 }, { x: 1, z: 1 }, { x: 2, z: 1 }, { x: 0, z: 2 }, { x: 1, z: 2 }, { x: 0, z: 3 }, { x: 3, z: 3 }] },
+			// .G.. / XXX. / XX.. / .X.X
+			{ goal: { x: 1, z: 0 }, mines: [{ x: 0, z: 1 }, { x: 1, z: 1 }, { x: 2, z: 1 }, { x: 0, z: 2 }, { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 3, z: 3 }] },
 		],
 	},
 ];

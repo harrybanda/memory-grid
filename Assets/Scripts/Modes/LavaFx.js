@@ -2,11 +2,12 @@
 // Floor Is Lava visuals. "Draw only the glow": every layer is additive light, so black adds nothing and
 // the real floor between the lava veins reads as the dark crust.
 //
-// Per tile: a glowing frame (plate), a textured lava core that grows during the warning and flares
-// on landing, and a tapered flame tongue that turns to face the player. Shared: the safe beacon
-// (ground ring, light pillar, rising rings), a shock ring on the floor, a burn glow along the bottom
+// Per tile: a glowing frame (plate), a warning sign ("!" on the floor, turned to read upright for the
+// player) while the tile is about to burn, a textured lava core that only appears when the lava lands,
+// and a tapered flame tongue that turns to face the player. Shared: the safe beacon (ground ring, light
+// pillar, rising rings; now only the start tile), a shock ring on the floor, a burn glow along the bottom
 // of the view, and a lava moat around the board. Tiles marked molten stay lava between waves.
-// Warm squares and tongues mean danger; cool circles and a thin pillar mean safety.
+// Amber "!" means it is about to burn, lava means it is burning, cool circles and a pillar mean go here.
 // Everything is built once and reused across sessions; nothing is created or destroyed per wave.
 
 var Helpers = require("./ModeHelpers");
@@ -15,6 +16,7 @@ var Meshes = require("../Visuals/GlowMeshes");
 var FX = {
 	PLATE_LIFT: 0.8, // cm above the floor plane (the hidden tile boxes' tops are at +0.5)
 	CORE_LIFT: 1.2,
+	SIGN_LIFT: 1.4,
 	RING_LIFT: 1.6,
 
 	FLAME_HEIGHT: 200, // tall enough to reach eye level from the next tile
@@ -54,7 +56,7 @@ var TINT = {
 	IDLE: new vec3(0.55, 0.65, 0.75),
 	SAFE: new vec3(0.25, 0.95, 1.0),
 	WARN_RIM: new vec3(1.0, 0.62, 0.12),
-	WARN_CORE: new vec3(1.0, 0.45, 0.1),
+	WARN_SIGN: new vec3(1.0, 0.7, 0.15),
 	LAVA_RIM: new vec3(1.0, 0.8, 0.45),
 	LAVA_CORE: new vec3(1.0, 1.0, 1.0),
 	CRUST: new vec3(1.0, 0.25, 0.05),
@@ -146,6 +148,7 @@ function create(options) {
 			coreColor: tween(new vec3(0, 0, 0)),
 			coreOffAtEnd: false,
 			coreTurn: ((x + 2 * z) % 4) * (Math.PI / 2), // so the tiles don't look copy-pasted
+			sign: glow(name + "Sign", Meshes.exclamation()),
 			flame: glowCard(name + "Flame", Meshes.flame(), options.flameTexture, new vec2(1, 1.4), new vec2((Math.random() - 0.5) * 0.04, -0.85 + (Math.random() - 0.5) * 0.16)),
 			flameState: Flame.OFF,
 			flameTime: 0,
@@ -486,6 +489,7 @@ function create(options) {
 			tile.coreScale = -1; // forces the next setCore to apply its scale
 
 			tile.flame.object.getTransform().setWorldPosition(tile.flameBase);
+			tile.sign.object.getTransform().setWorldPosition(toWorld(tile.centre, FX.SIGN_LIFT));
 
 			tile.plateColor = tween(TINT.IDLE.uniformScale(IDLE_LEVEL));
 			setColor(tile.plate, tile.plateColor.value);
@@ -538,6 +542,7 @@ function create(options) {
 			updatePlate(tile, dt);
 			updateCore(tile, dt);
 			updateFlame(tile, dt, head, cameraWorld, flare);
+			if (tile.sign.object.enabled) faceCamera(tile.sign.object.getTransform(), toWorld(tile.centre, 0), cameraWorld);
 		});
 		updateSafe(head, cameraWorld);
 		updateShock(dt);
@@ -558,24 +563,11 @@ function create(options) {
 	 */
 	function resetBoard(duration) {
 		var fade = duration === undefined ? 0.15 : duration;
-		warnTiles = [];
+		hideSigns();
 		forEachTile(function (tile) {
 			restLook(tile, fade);
 			sink(tile);
 		});
-	}
-
-	/**
-	 * Plate looks the controller sets directly: "idle", "settle" (the tile that counts while settling) or "safe"
-	 */
-	function setPlateLook(x, z, look, duration) {
-		var tile = tiles[z][x];
-		var fade = duration === undefined ? 0.15 : duration;
-		if (look === "idle") {
-			restLook(tile, fade);
-			return;
-		}
-		setPlate(tile, look === "settle" ? TINT.SAFE.uniformScale(0.45) : TINT.SAFE, fade);
 	}
 
 	/**
@@ -612,31 +604,38 @@ function create(options) {
 	}
 
 	/**
-	 * Marks the tiles that will burn: their cores start as a small dim patch of cracks
+	 * Marks the tiles that will burn with a warning sign; no lava shows until it lands
 	 * @param {Array} list - [{x, z}]
 	 */
 	function setWarnTiles(list) {
-		warnTiles = [];
+		hideSigns();
 		for (var i = 0; i < list.length; i++) {
 			var tile = tiles[list[i].z][list[i].x];
 			warnTiles.push(tile);
-			setCore(tile, 0.25, TINT.WARN_CORE.uniformScale(0.25), 0);
+			setColor(tile.sign, TINT.WARN_SIGN, 0.6);
+			tile.sign.object.enabled = true;
 		}
 	}
 
 	/**
-	 * Warning frame: the frames breathe amber and the cracks spread across the tile as the warning runs
+	 * Warning frame: the frames and signs breathe amber, a little brighter as landing approaches
 	 * @param {number} pulse - 0-1 pulse value (the caller caps its rate)
 	 * @param {number} progress - 0-1 through the warning
 	 */
 	function setWarnLevel(pulse, progress) {
 		var rim = TINT.WARN_RIM.uniformScale(0.55 + 0.45 * pulse);
-		var scale = 0.25 + 0.7 * Math.pow(progress, 0.7);
-		var core = TINT.WARN_CORE.uniformScale(0.25 + 0.45 * progress);
+		var sign = 0.55 + 0.25 * progress + 0.2 * pulse;
 		for (var i = 0; i < warnTiles.length; i++) {
 			setPlate(warnTiles[i], rim, 0);
-			setCore(warnTiles[i], scale, core, 0);
+			setColor(warnTiles[i].sign, TINT.WARN_SIGN, sign);
 		}
+	}
+
+	function hideSigns() {
+		for (var i = 0; i < warnTiles.length; i++) {
+			warnTiles[i].sign.object.enabled = false;
+		}
+		warnTiles = [];
 	}
 
 	/**
@@ -645,7 +644,7 @@ function create(options) {
 	 * @param {Object} origin - {x, z} the player's tile
 	 */
 	function igniteTiles(list, origin) {
-		warnTiles = [];
+		hideSigns();
 		moatFlareTime = FX.MOAT_FLARE_TIME;
 		for (var i = 0; i < list.length; i++) {
 			var tile = tiles[list[i].z][list[i].x];
@@ -742,7 +741,7 @@ function create(options) {
 	 */
 	function burnedOut() {
 		hideSafe();
-		warnTiles = [];
+		hideSigns();
 		forEachTile(function (tile) {
 			setPlate(tile, TINT.OUT.uniformScale(0.9), 0);
 			queuePlate(tile, 0.02, TINT.OUT.uniformScale(0.4), 2.5);
@@ -752,7 +751,7 @@ function create(options) {
 	}
 
 	function hideAll() {
-		warnTiles = [];
+		hideSigns();
 		forEachTile(function (tile) {
 			tile.plateQueue = [];
 			tile.molten = false;
@@ -776,7 +775,6 @@ function create(options) {
 		place: place,
 		update: update,
 		resetBoard: resetBoard,
-		setPlateLook: setPlateLook,
 		setSafe: setSafe,
 		hideBeam: hideBeam,
 		hideSafe: hideSafe,

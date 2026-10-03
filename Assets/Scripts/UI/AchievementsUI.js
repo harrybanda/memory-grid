@@ -1,7 +1,6 @@
 // AchievementsUI.js
 // Displays achievements in a grid of cards, with a tab per game mode
-// Icons are auto-matched by filename (like AudioManager)
-// Only Classic has achievements so far; the other modes' tabs say theirs are coming
+// Icons are auto-matched by filename (like AudioManager); the achievements themselves are in AchievementDefs.js
 
 // @input SceneObject backButton {"label": "Back Button", "hint": "Button to return to main menu"}
 // @input SceneObject classicTab {"label": "Classic Tab"}
@@ -30,6 +29,8 @@
 // @ui {"widget": "label", "label": "Menu Reference"}
 // @input Component.ScriptComponent mainMenuScript {"label": "Main Menu Script", "hint": "Reference to MainMenuManager script"}
 
+var AchievementDefs = require("../Utils/AchievementDefs");
+
 // Import UI Kit button components
 var PillButton = null;
 var RectangleButton = null;
@@ -51,12 +52,12 @@ try {
 var backBtn = null;
 var spawnedCards = [];
 
-// One tab per game mode. Only Classic has achievements for now
+// One tab per game mode; mode matches AchievementDefs
 var TABS = [
-	{ input: "classicTab", name: "CLASSIC", hasAchievements: true },
-	{ input: "minefieldTab", name: "MINEFIELD", hasAchievements: false },
-	{ input: "tonePadsTab", name: "TONE PADS", hasAchievements: false },
-	{ input: "lavaTab", name: "FLOOR IS LAVA", hasAchievements: false },
+	{ input: "classicTab", name: "CLASSIC", mode: "classic" },
+	{ input: "minefieldTab", name: "MINEFIELD", mode: "minefield" },
+	{ input: "tonePadsTab", name: "TONE PADS", mode: "tonepads" },
+	{ input: "lavaTab", name: "FLOOR IS LAVA", mode: "lava" },
 ];
 var TAB_LABEL_SIZE = 26;
 
@@ -162,26 +163,10 @@ function normalizeIconKey(value) {
 	return key;
 }
 
-// All achievements with IDs matching SaveManager.checkAchievements()
-var achievementsData = [
-	// Progression
-	{ id: "first_steps", name: "First Steps", description: "Complete Level 1", unlocked: false },
-	{ id: "getting_warmer", name: "Getting Warmer", description: "Complete Level 3", unlocked: false },
-	{ id: "memory_walker", name: "Memory Walker", description: "Complete Level 5", unlocked: false },
-	{ id: "grid_expert", name: "Grid Expert", description: "Complete Level 8", unlocked: false },
-	{ id: "grid_master", name: "Grid Master", description: "Complete all 11 levels", unlocked: false },
-
-	// Flawless
-	{ id: "clean_start", name: "Clean Start", description: "Complete Level 1 on first try", unlocked: false },
-	{ id: "flawless_five", name: "Flawless Five", description: "Complete Levels 1-5 without retries", unlocked: false },
-	{ id: "no_mistakes", name: "No Mistakes", description: "Complete all 11 levels without retries", unlocked: false },
-	{ id: "deep_focus", name: "Deep Focus", description: "Complete a Level 6+ on first try", unlocked: false },
-
-	// Persistence
-	{ id: "quick_learner", name: "Quick Learner", description: "Complete a level after 1 retry", unlocked: false },
-	{ id: "comeback_kid", name: "Comeback Kid", description: "Complete a level after 3+ retries", unlocked: false },
-	{ id: "never_give_up", name: "Never Give Up", description: "Beat Level 11 with 5+ total retries", unlocked: false },
-];
+// Every mode's achievements, from the shared list (Utils/AchievementDefs.js); unlocked is synced from SaveManager
+var achievementsData = AchievementDefs.LIST.map(function (achievement) {
+	return { id: achievement.id, mode: achievement.mode, name: achievement.name, description: achievement.description, unlocked: false };
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // ICON MAPPING
@@ -472,7 +457,7 @@ function findFirstText(object) {
 }
 
 /**
- * Shows one mode's achievements: Classic's cards, or a coming-soon note for the others
+ * Shows one mode's achievement cards (or a coming-soon note if a mode has none yet)
  * @param {number} index - Index into TABS
  */
 function selectTab(index) {
@@ -483,11 +468,9 @@ function selectTab(index) {
 		if (label) label.textFill.color = i === index ? TAB_ACTIVE_COLOR : TAB_IDLE_COLOR;
 	}
 
-	if (TABS[index].hasAchievements) {
+	if (showCards(TABS[index].mode) > 0) {
 		hideComingSoon();
-		showClassicCards();
 	} else {
-		clearCards();
 		showComingSoon(TABS[index].name);
 	}
 }
@@ -524,9 +507,11 @@ function displayAchievements() {
 }
 
 /**
- * Display Classic's achievements in a grid
+ * Lays out one mode's achievements in the card grid
+ * @param {string} mode - An AchievementDefs mode key
+ * @returns {number} How many cards were shown
  */
-function showClassicCards() {
+function showCards(mode) {
 	// Ensure icon map is built (handles case where display is called before OnStartEvent)
 	if (Object.keys(iconMap).length === 0) {
 		buildIconMap();
@@ -537,9 +522,13 @@ function showClassicCards() {
 	// Sync with save system to get current unlock status
 	syncUnlockStatus();
 
+	var shown = 0;
 	for (var i = 0; i < achievementsData.length; i++) {
-		spawnCard(achievementsData[i], i);
+		if (achievementsData[i].mode !== mode) continue;
+		spawnCard(achievementsData[i], shown);
+		shown++;
 	}
+	return shown;
 }
 
 // ═══════════════════════════════════════════════════════════════════

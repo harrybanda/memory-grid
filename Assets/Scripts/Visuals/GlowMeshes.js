@@ -133,6 +133,50 @@ function core() {
 }
 
 /**
+ * Adds a flat rectangle on XZ to a mesh: solid inside, fading to nothing over `feather` cm outside
+ */
+function featheredRect(data, cx, cz, halfX, halfZ, feather) {
+	var base = data.count;
+	var sizes = [
+		{ x: halfX, z: halfZ, alpha: 1 },
+		{ x: halfX + feather, z: halfZ + feather, alpha: 0 },
+	];
+	var corners = [
+		[-1, -1],
+		[1, -1],
+		[1, 1],
+		[-1, 1],
+	];
+	for (var r = 0; r < sizes.length; r++) {
+		for (var c = 0; c < 4; c++) {
+			var x = cx + corners[c][0] * sizes[r].x;
+			var z = cz + corners[c][1] * sizes[r].z;
+			data.vertex(x, 0, z, UP, 0.5, 0.5, WHITE, sizes[r].alpha);
+		}
+	}
+	data.quad(base, base + 1, base + 2, base + 3);
+	for (var s = 0; s < 4; s++) {
+		var next = (s + 1) % 4;
+		data.quad(base + s, base + next, base + 4 + next, base + 4 + s);
+	}
+}
+
+/**
+ * Warning sign: a flat "!" on XZ, about 44cm long. Its top points to local -Z, so a rotation that turns +Z
+ * toward the viewer reads it upright. Drawn long with a wide gap, like road markings, because the floor is
+ * seen at a slant and the length foreshortens
+ */
+function exclamation() {
+	if (!cache.exclamation) {
+		var data = new MeshData();
+		featheredRect(data, 0, -9, 3.4, 13, 2.5); // the bar, from z -22 to 4
+		featheredRect(data, 0, 13.5, 3.8, 3.5, 2.5); // the dot, from z 10 to 17
+		cache.exclamation = data.build();
+	}
+	return cache.exclamation;
+}
+
+/**
  * Lava moat: a band around a board whose tile edges are halfX/halfZ from its centre. A thin gap, then lava
  * that fades out over the outer part. Cached per board size
  */
@@ -419,6 +463,7 @@ module.exports = {
 	tile: tile,
 	plate: plate,
 	core: core,
+	exclamation: exclamation,
 	flame: flame,
 	beam: beam,
 	ring: ring,

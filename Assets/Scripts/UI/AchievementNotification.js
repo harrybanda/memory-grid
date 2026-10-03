@@ -27,20 +27,7 @@ var iconMeshVisualComp = null;
 
 var baseScale = new vec3(1, 1, 1);
 
-var achievementDefinitions = {
-	first_steps: { name: "First Steps", description: "Complete Level 1" },
-	getting_warmer: { name: "Getting Warmer", description: "Complete Level 3" },
-	memory_walker: { name: "Memory Walker", description: "Complete Level 5" },
-	grid_expert: { name: "Grid Expert", description: "Complete Level 8" },
-	grid_master: { name: "Grid Master", description: "Complete all 11 levels" },
-	clean_start: { name: "Clean Start", description: "Complete Level 1 on first try" },
-	flawless_five: { name: "Flawless Five", description: "Complete Levels 1-5 without retries" },
-	no_mistakes: { name: "No Mistakes", description: "Complete all 11 levels without retries" },
-	deep_focus: { name: "Deep Focus", description: "Complete a Level 6+ on first try" },
-	quick_learner: { name: "Quick Learner", description: "Complete a level after 1 retry" },
-	comeback_kid: { name: "Comeback Kid", description: "Complete a level after 3+ retries" },
-	never_give_up: { name: "Never Give Up", description: "Beat Level 11 with 5+ total retries" },
-};
+var AchievementDefs = require("../Utils/AchievementDefs");
 
 function getRootObject() {
 	return script.notificationRoot || script.getSceneObject();
@@ -81,7 +68,7 @@ function prettifyAchievementId(achievementId) {
 
 function getAchievementData(achievementId) {
 	var key = normalizeAchievementId(achievementId);
-	var data = achievementDefinitions[key];
+	var data = AchievementDefs.byId(key);
 	if (data) return data;
 
 	return {

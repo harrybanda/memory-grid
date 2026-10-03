@@ -1671,7 +1671,7 @@
   MeshShadowMode: None
   ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
   ShadowDensity: 1.000000
-  Text: V 1.0.0
+  Text: V 2.0.0
   Editable: false
   ShowEditingPreview: true
   TouchHandler: !<reference> 00000000-0000-0000-0000-000000000000
@@ -3658,7 +3658,6 @@
   Enabled: true
   ScriptAsset: !<reference> bca084fc-ac10-420c-9bcd-28f6d51fb35c
   ScriptInputsDefault:
-    gameVersion: true
     floorPlacementParent: true
     floorPlacementObject: true
   ScriptTypesDefault:
@@ -3675,9 +3674,8 @@
       achievementsButton: !<reference.SceneObject> f132c560-0235-4c1e-b031-2b63a54a79a9
       resetProgressButton: !<reference.SceneObject> 7b3e2dc6-4f97-4caf-a55e-9f2105eb2d19
       resetAllButton: !<reference.SceneObject> 63e143d0-34f1-48e7-b4e4-6500058ec0cc
-      versionText: !<reference.Text> 84274fe1-24a2-442a-864e-adc6a2cf6829
+      versionText: !<reference.Text> 331182e8-92ba-45eb-adda-ac9184bcd34c
       levelText: !<reference.Text> 5a1c5429-d4d6-48b5-9da1-684f85140d70
-      gameVersion: v1.0.0
       spaceReminder: !<reference.ScriptComponent> 41f40b98-e533-40c0-9bf7-9e974553dc27
       floorPlacementPrefab: !<reference.ObjectPrefab> 5d8bf179-9698-4c0a-a5c9-969ffba465ce
       floorPlacementParent: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
@@ -4698,6 +4696,21 @@
         - !<reference> 5e5103ea-ef1c-493b-a22a-303bbc9ec702
         - !<reference> 344828b8-d9f3-4132-b86f-6a364f40194c
         - !<reference> bc3f88b4-b328-4902-9202-c9d37622ee02
+        - !<reference> afe8b199-20d9-4bc5-bfba-5b169fff23b3
+        - !<reference> c81c0d40-c5bd-47f0-bcf4-efd9429b497b
+        - !<reference> 3a6e8293-56b5-46c0-8d2f-81d56e255182
+        - !<reference> b7bfaad8-fcbf-4fdf-8b6c-28b6c8c530bc
+        - !<reference> 10f6240e-98ff-44a8-a3e6-2c25c2840766
+        - !<reference> 4bda4085-6eb0-4c65-8341-1ce66e6ffb5b
+        - !<reference> 548ff22f-de61-4b58-89f5-9dca93906a6c
+        - !<reference> 84114ebd-29e0-4e7d-a6cc-afaafac78a9d
+        - !<reference> 32bcc1d5-51ef-44af-bde4-d74c084a1c21
+        - !<reference> 2eb3b97d-be01-44ea-bf85-b361d6e76d11
+        - !<reference> 13c827b5-bba5-4005-ac6c-419fca90318e
+        - !<reference> 7095da30-981e-4103-aff7-f257145a627a
+        - !<reference> 21d5a4df-217d-4d89-bea5-496f8c2b0c08
+        - !<reference> b941108e-c1f4-438f-bb6a-45b02f761ea9
+        - !<reference> 32dbee94-68c3-45ee-92ff-adecb271adf0
       lockedTint: !<Vec4> {x: 0.250000, y: 0.250000, z: 0.250000, w: 0.600000}
       mainMenuScript: !<reference.ScriptComponent> 731bf71a-5e82-40a9-ae99-c7fb48b906b0
   ScriptTypes:

@@ -2,8 +2,22 @@
 // Handles save/restore of game progress using Lens Studio persistent storage
 // Reference: https://developers.snap.com/lens-studio/api/lens-scripting/classes/Built-In.PersistentStorageSystem.html
 
+var AchievementDefs = require("./AchievementDefs");
+
 var SAVE_KEY = "memoryGridSave";
 var storage = null;
+
+// The new modes each keep their own progress; Classic's stays in the top-level fields
+var MODE_KEYS = ["minefield", "tonepads", "lava"];
+
+function defaultModeData() {
+	return {
+		highestCleared: 0, // highest level cleared (levels count from 1)
+		clearedFirstTry: [], // levels cleared without failing them since they were last cleared
+		failsPerLevel: {}, // { "2": 1, ... } fails since the level was last cleared
+		stats: {}, // tonepads: longestTune; lava: wavesSurvived
+	};
+}
 
 // Default save data structure
 var defaultSaveData = {
@@ -14,6 +28,7 @@ var defaultSaveData = {
 	retriesPerLevel: {}, // { "1": 0, "2": 1, ... }
 	levelsCompletedFirstTry: [], // [1, 2, 5, ...] levels completed without retrying
 	achievements: [], // ["first_steps", "flawless_five", ...]
+	modes: {}, // filled by ensureModes: { minefield: defaultModeData(), ... }
 };
 
 // In-memory save data
@@ -77,6 +92,7 @@ function init() {
 		print("SaveManager: Persistent storage not available - " + e);
 		// Use default data in memory if storage unavailable
 		saveData = JSON.parse(JSON.stringify(defaultSaveData));
+		ensureModes();
 	}
 }
 
@@ -102,6 +118,26 @@ function loadFromStorage() {
 	} catch (e) {
 		print("SaveManager: Load failed - " + e);
 		saveData = JSON.parse(JSON.stringify(defaultSaveData));
+	}
+	ensureModes();
+}
+
+/**
+ * Saves from before the new modes had progress get an empty record per mode (Classic's is untouched)
+ */
+function ensureModes() {
+	if (!saveData) return;
+	saveData.modes = saveData.modes || {};
+	for (var i = 0; i < MODE_KEYS.length; i++) {
+		var mode = saveData.modes[MODE_KEYS[i]];
+		if (!mode) {
+			saveData.modes[MODE_KEYS[i]] = defaultModeData();
+			continue;
+		}
+		var defaults = defaultModeData();
+		for (var field in defaults) {
+			if (mode[field] === undefined) mode[field] = defaults[field];
+		}
 	}
 }
 
@@ -297,6 +333,106 @@ function checkAchievements() {
 	}
 }
 
+// ============================================
+// NEW MODES (Minefield, Tone Pads, Floor Is Lava)
+// ============================================
+
+function modeData(mode) {
+	if (!saveData) return null;
+	ensureModes();
+	return saveData.modes[mode] || null;
+}
+
+/**
+ * A mode's level was cleared
+ * @param {string} mode - "minefield", "tonepads" or "lava"
+ * @param {number} level - The level cleared, counting from 1
+ * @param {number} levelCount - How many levels the mode has (for "clear them all")
+ */
+function onModeLevelCleared(mode, level, levelCount) {
+	var data = modeData(mode);
+	if (!data) return;
+	var key = level.toString();
+	if (!data.failsPerLevel[key] && data.clearedFirstTry.indexOf(level) === -1) {
+		data.clearedFirstTry.push(level);
+	}
+	data.failsPerLevel[key] = 0;
+	data.highestCleared = Math.max(data.highestCleared, level);
+	checkModeAchievements(mode, levelCount);
+	saveToStorage();
+}
+
+/**
+ * A mode's level was failed (it restarts)
+ */
+function onModeLevelFailed(mode, level) {
+	var data = modeData(mode);
+	if (!data) return;
+	var key = level.toString();
+	data.failsPerLevel[key] = (data.failsPerLevel[key] || 0) + 1;
+	saveToStorage();
+}
+
+/**
+ * Keeps the best value of a mode stat (e.g. the longest tune played back). Saved with the next level result,
+ * or straight away if it unlocks something
+ */
+function recordModeBest(mode, stat, value) {
+	var data = modeData(mode);
+	if (!data) return;
+	if (value > (data.stats[stat] || 0)) {
+		data.stats[stat] = value;
+		if (checkModeAchievements(mode)) saveToStorage();
+	}
+}
+
+/**
+ * Adds to a running mode stat (e.g. lava waves survived). Saved like recordModeBest
+ */
+function addModeCount(mode, stat, amount) {
+	var data = modeData(mode);
+	if (!data) return;
+	data.stats[stat] = (data.stats[stat] || 0) + amount;
+	if (checkModeAchievements(mode)) saveToStorage();
+}
+
+/**
+ * Unlocks a mode's achievements from its progress (rules in AchievementDefs.MODE_RULES)
+ * @param {string} mode
+ * @param {number} levelCount - Optional; the "all levels" achievements need it
+ * @returns {boolean} True if anything new unlocked
+ */
+function checkModeAchievements(mode, levelCount) {
+	var data = modeData(mode);
+	var rules = AchievementDefs.MODE_RULES[mode];
+	if (!data || !rules) return false;
+
+	var newAchievements = [];
+	if (data.highestCleared >= 1) unlockAchievement(rules.first, newAchievements);
+	if (data.highestCleared >= AchievementDefs.HALFWAY_LEVEL) unlockAchievement(rules.halfway, newAchievements);
+	if (levelCount && data.highestCleared >= levelCount) unlockAchievement(rules.master, newAchievements);
+	if (data.clearedFirstTry.length > 0) unlockAchievement(rules.firstTry, newAchievements);
+
+	if (rules.allFirstTry && levelCount) {
+		var all = true;
+		for (var level = 1; level <= levelCount; level++) {
+			if (data.clearedFirstTry.indexOf(level) === -1) {
+				all = false;
+				break;
+			}
+		}
+		if (all) unlockAchievement(rules.allFirstTry, newAchievements);
+	}
+	if (rules.stat && (data.stats[rules.stat.key] || 0) >= rules.stat.atLeast) {
+		unlockAchievement(rules.stat.id, newAchievements);
+	}
+
+	if (newAchievements.length === 0) return false;
+	print("SaveManager: New achievements unlocked - " + newAchievements.join(", "));
+	emitAchievementsUnlocked(newAchievements);
+	return true;
+}
+
 /**
  * Unlock an achievement if not already unlocked
  */
@@ -337,6 +473,7 @@ function resetProgress() {
 
 	// Restore achievements — once unlocked, always unlocked
 	saveData.achievements = savedAchievements;
+	ensureModes();
 
 	saveToStorage();
 	print("SaveManager: Progress reset (achievements preserved: " + savedAchievements.length + ")");
@@ -352,6 +489,12 @@ function resetLevelProgress() {
 	saveData.totalRetries = 0;
 	saveData.retriesPerLevel = {};
 	saveData.levelsCompletedFirstTry = [];
+	// The new modes lose their retry and first-try records the same way; highest levels and stats stay
+	ensureModes();
+	for (var i = 0; i < MODE_KEYS.length; i++) {
+		saveData.modes[MODE_KEYS[i]].failsPerLevel = {};
+		saveData.modes[MODE_KEYS[i]].clearedFirstTry = [];
+	}
 	// Keep achievements and highestLevel
 
 	saveToStorage();
@@ -364,6 +507,7 @@ function resetLevelProgress() {
  */
 function resetAllProgress() {
 	saveData = JSON.parse(JSON.stringify(defaultSaveData));
+	ensureModes();
 	saveToStorage();
 	print("SaveManager: Full reset (levels + retries + achievements cleared)");
 }
@@ -385,6 +529,10 @@ global.PathFinder.Save = {
 	hasAchievement: hasAchievement,
 	getUnlockedAchievements: getUnlockedAchievements,
 	onAchievementsUnlocked: onAchievementsUnlocked,
+	onModeLevelCleared: onModeLevelCleared,
+	onModeLevelFailed: onModeLevelFailed,
+	recordModeBest: recordModeBest,
+	addModeCount: addModeCount,
 	resetProgress: resetProgress,
 	resetLevelProgress: resetLevelProgress,
 	resetAll: resetAllProgress,

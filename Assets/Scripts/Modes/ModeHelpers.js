@@ -93,6 +93,29 @@ function playSfx(name) {
 }
 
 /**
+ * Level results and stats for progress and achievements (SaveManager). Levels count from 1
+ */
+function recordLevelCleared(mode, level, levelCount) {
+	var save = global.PathFinder && global.PathFinder.Save;
+	if (save && save.onModeLevelCleared) save.onModeLevelCleared(mode, level, levelCount);
+}
+
+function recordLevelFailed(mode, level) {
+	var save = global.PathFinder && global.PathFinder.Save;
+	if (save && save.onModeLevelFailed) save.onModeLevelFailed(mode, level);
+}
+
+function recordBest(mode, stat, value) {
+	var save = global.PathFinder && global.PathFinder.Save;
+	if (save && save.recordModeBest) save.recordModeBest(mode, stat, value);
+}
+
+function addToCount(mode, stat, amount) {
+	var save = global.PathFinder && global.PathFinder.Save;
+	if (save && save.addModeCount) save.addModeCount(mode, stat, amount);
+}
+
+/**
  * Plays one of the rising step notes (1-25) through the shared SFX channel
  */
 function playStep(n) {
@@ -248,6 +271,10 @@ module.exports = {
 	playStep: playStep,
 	playTrack: playTrack,
 	stopTrack: stopTrack,
+	recordLevelCleared: recordLevelCleared,
+	recordLevelFailed: recordLevelFailed,
+	recordBest: recordBest,
+	addToCount: addToCount,
 	headLocal: headLocal,
 	viewLocal: viewLocal,
 	bodyLocal: bodyLocal,

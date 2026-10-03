@@ -44,11 +44,14 @@ var PADS = [
 var HOME_COLOR = new vec4(1.0, 1.0, 1.0, 1.0);
 var WRONG_COLOR = new vec4(1.0, 0.2, 0.2, 1.0);
 
-// Three levels for testing. Each starts at startLength notes and clears at targetLength
+// Each level starts at startLength notes and clears at targetLength; later levels play faster
 var LEVELS = [
 	{ startLength: 3, targetLength: 5, noteOn: 0.7, noteGap: 0.25 },
 	{ startLength: 4, targetLength: 6, noteOn: 0.55, noteGap: 0.2 },
 	{ startLength: 5, targetLength: 8, noteOn: 0.45, noteGap: 0.15 },
+	{ startLength: 6, targetLength: 8, noteOn: 0.42, noteGap: 0.14 },
+	{ startLength: 7, targetLength: 10, noteOn: 0.38, noteGap: 0.12 },
+	{ startLength: 8, targetLength: 11, noteOn: 0.34, noteGap: 0.1 },
 ];
 
 var Config = {
@@ -233,6 +236,7 @@ function acceptPad(pad) {
 function tuneComplete() {
 	setPhase(Phase.RESULT);
 	best = Math.max(best, tune.length);
+	Helpers.recordBest("tonepads", "longestTune", tune.length);
 	clock.later(Config.CHIME_DELAY, function () {
 		Helpers.playSfx("playCompletion");
 	});
@@ -249,6 +253,7 @@ function tuneComplete() {
 }
 
 function levelComplete() {
+	Helpers.recordLevelCleared("tonepads", levelIndex + 1, LEVELS.length);
 	if (levelIndex < LEVELS.length - 1) {
 		Helpers.showHud("LEVEL " + (levelIndex + 1) + " CLEAR!", 0);
 		levelIndex++;
@@ -262,6 +267,7 @@ function levelComplete() {
 function wrongPad(pad) {
 	setPhase(Phase.RESULT);
 	Helpers.playSfx("playError");
+	Helpers.recordLevelFailed("tonepads", levelIndex + 1);
 
 	var expected = tune[inputIndex];
 	setPadColor(pad, Helpers.withAlpha(WRONG_COLOR, 0.8));

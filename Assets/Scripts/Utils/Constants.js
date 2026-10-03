@@ -171,6 +171,13 @@ var LevelConfig = {
 LevelConfig.LEVEL_COUNT = Math.floor((LevelConfig.MAX_PATH_LENGTH - LevelConfig.BASE_PATH_LENGTH) / LevelConfig.PATH_INCREMENT) + 1;
 
 /**
+ * The lens version, shown on the main menu. Bump it for every published update and add a CHANGELOG.md entry.
+ */
+var GameInfo = {
+	VERSION: "2.0.0",
+};
+
+/**
  * Direction vectors for path generation
  * Only allows orthogonal movement (no diagonals)
  */
@@ -193,4 +200,5 @@ module.exports = {
 	StartZoneConfig: StartZoneConfig,
 	LevelConfig: LevelConfig,
 	Directions: Directions,
+	GameInfo: GameInfo,
 };

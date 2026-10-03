@@ -14,9 +14,8 @@ var Constants = require("../Utils/Constants");
 // @input SceneObject achievementsButton {"label": "Achievements Button", "hint": "Button to view achievements"}
 // @input SceneObject resetProgressButton {"label": "Reset Progress Button", "hint": "Button to clear saved progress"}
 // @input SceneObject resetAllButton {"label": "Reset All Button (Debug)", "hint": "Debug-only button that calls Save.resetAll()"}
-// @input Component.Text versionText {"label": "Version Text", "hint": "Text showing game version"}
+// @input Component.Text versionText {"label": "Version Text", "hint": "Shows Constants.GameInfo.VERSION"}
 // @input Component.Text levelText {"label": "Level Text", "hint": "Text showing current level (optional)"}
-// @input string gameVersion = "v1.0.0" {"label": "Game Version"}
 
 // @ui {"widget": "separator"}
 // @ui {"widget": "label", "label": "Scene References"}
@@ -417,7 +416,7 @@ function isVisible() {
 function initialize() {
 	// Set version text
 	if (script.versionText) {
-		script.versionText.text = script.gameVersion || "v1.0.0";
+		script.versionText.text = "V " + Constants.GameInfo.VERSION;
 	}
 
 	// Setup Start button

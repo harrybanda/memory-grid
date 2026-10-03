@@ -382,6 +382,7 @@ function win() {
 	var stars = lives;
 	var total = MinefieldLayouts.LEVELS.length;
 	var clearedAll = level >= total;
+	Helpers.recordLevelCleared("minefield", currentLevelNumber(), total);
 	var headline = clearedAll ? "ALL " + total + " LEVELS CLEARED!" : "SAFE!";
 	if (Config.LIVES === 1) {
 		showHud(headline + "\nTURN AROUND", 0);
@@ -408,6 +409,7 @@ function lose(reason) {
 	setPhase(Phase.RESULT);
 	relightMines();
 	showHud((Config.LIVES === 1 ? reason : "OUT OF LIVES") + "\nTURN AROUND", 0);
+	Helpers.recordLevelFailed("minefield", currentLevelNumber());
 
 	later(0.8, function () {
 		playVoice(randomItem(FAIL_LINES));

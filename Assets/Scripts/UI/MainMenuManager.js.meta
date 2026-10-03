@@ -32,7 +32,6 @@
     floorPlacementObject: false
     floorPlacementParent: false
     floorPlacementPrefab: false
-    gameVersion: false
     interfaceContainer: false
     lavaButton: false
     levelText: false
@@ -65,7 +64,6 @@
       resetAllButton: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       versionText: !<reference.Text> 00000000-0000-0000-0000-000000000000
       levelText: !<reference.Text> 00000000-0000-0000-0000-000000000000
-      gameVersion: v1.0.0
       spaceReminder: !<reference.ScriptComponent> 00000000-0000-0000-0000-000000000000
       floorPlacementPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
       floorPlacementParent: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
